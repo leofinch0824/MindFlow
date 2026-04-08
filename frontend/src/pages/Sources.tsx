@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { sourcesApi, type NewsSource } from '../api/client';
+import { sourcesApi, type NewsSource, type ParsedAccount } from '../api/client';
 import dayjs from 'dayjs';
 
 export default function Sources() {
   const [sources, setSources] = useState<NewsSource[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showUrlModal, setShowUrlModal] = useState(false);
   const [editingSource, setEditingSource] = useState<NewsSource | null>(null);
   const [fetchingId, setFetchingId] = useState<number | null>(null);
 
@@ -57,18 +58,29 @@ export default function Sources() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-900">新闻源管理</h2>
-        <button
-          onClick={() => {
-            setEditingSource(null);
-            setShowModal(true);
-          }}
-          className="inline-flex items-center px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600 transition-colors"
-        >
-          <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          添加新闻源
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowUrlModal(true)}
+            className="inline-flex items-center px-4 py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 transition-colors"
+          >
+            <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+            </svg>
+            从链接添加
+          </button>
+          <button
+            onClick={() => {
+              setEditingSource(null);
+              setShowModal(true);
+            }}
+            className="inline-flex items-center px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600 transition-colors"
+          >
+            <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            添加新闻源
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -141,6 +153,16 @@ export default function Sources() {
           onClose={() => setShowModal(false)}
           onSave={() => {
             setShowModal(false);
+            loadSources();
+          }}
+        />
+      )}
+
+      {showUrlModal && (
+        <AddFromUrlModal
+          onClose={() => setShowUrlModal(false)}
+          onSuccess={() => {
+            setShowUrlModal(false);
             loadSources();
           }}
         />
@@ -273,6 +295,170 @@ function SourceModal({ source, onClose, onSave }: SourceModalProps) {
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+interface AddFromUrlModalProps {
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+function AddFromUrlModal({ onClose, onSuccess }: AddFromUrlModalProps) {
+  const [url, setUrl] = useState('');
+  const [parsing, setParsing] = useState(false);
+  const [parsedAccount, setParsedAccount] = useState<ParsedAccount | null>(null);
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const handleParse = async () => {
+    if (!url.trim()) {
+      setError('请输入文章链接');
+      return;
+    }
+
+    if (!url.includes('mp.weixin.qq.com')) {
+      setError('请输入有效的微信公众号文章链接');
+      return;
+    }
+
+    setParsing(true);
+    setError('');
+    setParsedAccount(null);
+
+    try {
+      const account = await sourcesApi.parseUrl(url);
+      setParsedAccount(account);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '解析失败');
+    } finally {
+      setParsing(false);
+    }
+  };
+
+  const handleConfirm = async () => {
+    if (!parsedAccount) return;
+
+    setSaving(true);
+    try {
+      await sourcesApi.create({
+        name: parsedAccount.nickname,
+        source_type: 'mptext',
+        api_base_url: 'https://down.mptext.top',
+        auth_key: '',
+        config: { fakeid: parsedAccount.fakeid },
+      });
+      onSuccess();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '添加失败');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4">
+        <div className="flex items-center justify-between p-4 border-b border-gray-100">
+          <h3 className="text-lg font-semibold text-gray-900">从文章链接添加公众号</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="p-4 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">微信公众号文章链接</label>
+            <div className="flex gap-2">
+              <input
+                type="url"
+                value={url}
+                onChange={(e) => {
+                  setUrl(e.target.value);
+                  setError('');
+                  setParsedAccount(null);
+                }}
+                placeholder="https://mp.weixin.qq.com/s/..."
+                className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+              <button
+                onClick={handleParse}
+                disabled={parsing || !url.trim()}
+                className="px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600 disabled:opacity-50 transition-colors"
+              >
+                {parsing ? '解析中...' : '解析'}
+              </button>
+            </div>
+            <p className="mt-1 text-xs text-gray-500">粘贴任意微信公众号文章的链接，系统将自动识别所属公众号</p>
+          </div>
+
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+              {error}
+            </div>
+          )}
+
+          {parsedAccount && (
+            <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-center gap-3 mb-3">
+                {parsedAccount.avatar ? (
+                  <img
+                    src={parsedAccount.avatar}
+                    alt={parsedAccount.nickname}
+                    className="w-12 h-12 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center text-xl">
+                    📮
+                  </div>
+                )}
+                <div>
+                  <h4 className="font-semibold text-gray-900">{parsedAccount.nickname}</h4>
+                  {parsedAccount.is_verify === 2 && (
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
+                      已认证
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {parsedAccount.alias && (
+                <p className="text-sm text-gray-500 mb-2">微信号：{parsedAccount.alias}</p>
+              )}
+
+              {parsedAccount.verify_info && (
+                <p className="text-sm text-gray-500 mb-2">主体：{parsedAccount.verify_info}</p>
+              )}
+
+              {parsedAccount.signature && (
+                <p className="text-sm text-gray-400 line-clamp-2">{parsedAccount.signature}</p>
+              )}
+
+              <div className="mt-3 pt-3 border-t border-green-200">
+                <p className="text-xs text-gray-500 mb-1">Fake ID：{parsedAccount.fakeid}</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-2 p-4 border-t border-gray-100">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            取消
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={!parsedAccount || saving}
+            className="px-4 py-2 text-sm font-medium text-white bg-green-500 rounded-lg hover:bg-green-600 disabled:opacity-50 transition-colors"
+          >
+            {saving ? '添加中...' : '确认添加'}
+          </button>
+        </div>
       </div>
     </div>
   );

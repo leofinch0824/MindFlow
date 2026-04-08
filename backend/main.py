@@ -9,7 +9,7 @@ from services.scheduler import start_scheduler, stop_scheduler
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    await init_db()
+    init_db()
     start_scheduler()
     yield
     # Shutdown

@@ -1,6 +1,6 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from crawler import fetch_all_sources
+from services.crawler import fetch_all_sources
 import asyncio
 
 

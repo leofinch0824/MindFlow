@@ -5,7 +5,7 @@ from database import get_ai_config
 
 async def get_openai_client() -> AsyncOpenAI:
     """Get configured OpenAI-compatible client"""
-    config = await get_ai_config()
+    config = get_ai_config()
     return AsyncOpenAI(
         api_key=config["api_key"],
         base_url=config["base_url"]
@@ -14,7 +14,7 @@ async def get_openai_client() -> AsyncOpenAI:
 
 async def summarize_text(title: str, content: str, max_length: int = 150) -> str:
     """Generate AI summary for article content"""
-    config = await get_ai_config()
+    config = get_ai_config()
 
     if not config or not config["api_key"]:
         return "AI 配置未完成，请在设置页面配置 API Key"
@@ -52,7 +52,7 @@ async def test_ai_connection() -> tuple[bool, str]:
     try:
         client = await get_openai_client()
         response = await client.chat.completions.create(
-            model=(await get_ai_config())["model"],
+            model=get_ai_config()["model"],
             messages=[{"role": "user", "content": "Hi"}],
             max_tokens=10
         )
