@@ -12,7 +12,7 @@
 | 创建日期 | 2026-04-08 |
 | V2 启动日期 | 2026-04-09 |
 | 状态 | 🚧 开发中 |
-| 当前阶段 | Phase C: 前端 Newsletter UI (进行中) |
+| 当前阶段 | Phase F: 文档和发布 (进行中) |
 | Python 虚拟环境 | backend/.venv |
 
 ---
@@ -29,8 +29,8 @@
 | Phase B | 后端兴趣学习（权重更新 + 行为日志） | ✅ 完成 | 2026-04-09 |
 | Phase C | 前端 Newsletter UI | ✅ 完成 | 2026-04-09 |
 | Phase D | 信息源扩展（知乎/RSS） | ⏳ 待开始 | - |
-| Phase E | 端到端联调 | ⏳ 待开始 | - |
-| Phase F | 文档和发布 | ⏳ 待开始 | - |
+| Phase E | 端到端联调 | ✅ 完成 | 2026-04-09 |
+| Phase F | 文档和发布 | 🚧 进行中 | - |
 
 ---
 
@@ -69,32 +69,32 @@
 |------|------|------|
 | Newsletter 页面 | frontend/src/pages/Newsletter.tsx | ✅ |
 | 兴趣侧边栏 | frontend/src/pages/Newsletter.tsx | ✅ |
-| ZoneBadge 组件 | frontend/src/pages/Newsletter.tsx | ✅ |
-| InsightCard 组件 | frontend/src/pages/Newsletter.tsx | ✅ |
-| tokens.css 设计系统 | frontend/src/styles/tokens.css | ✅ |
-| 设计系统集成 | frontend/src/index.css | ✅ |
+| InsightCard 组件 | frontend/src/components/InsightCard.tsx | ✅ |
 | useBehaviorCollector Hook | frontend/src/hooks/useBehaviorCollector.ts | ✅ |
 | InterestSettings 页面 | frontend/src/pages/InterestSettings.tsx | ✅ |
 | InterestTagItem 组件 | frontend/src/components/InterestTagItem.tsx | ✅ |
 | 日期选择器 | frontend/src/pages/Newsletter.tsx | ✅ |
+| tokens.css 设计系统 | frontend/src/styles/tokens.css | ✅ |
+
+### Phase E: 端到端联调 ✅
+
+| 功能 | 文件 | 状态 |
+|------|------|------|
+| 后端服务启动 | main.py | ✅ |
+| 前端服务启动 | vite | ✅ |
+| API 端点验证 | - | ✅ |
+| 测试通过 | tests/ (38 passed) | ✅ |
 
 ---
 
 ## 下一步待办
 
-### Phase C 剩余任务
-
-- [ ] C.4: 实现 useBehaviorCollector Hook
-- [ ] C.5: 新增 /settings/interests 页面
-- [ ] C.6: 实现 InterestTagItem 组件（权重条+统计）
-- [ ] C.7: 实现日期选择器（历史简报切换）
-
 ### Phase D 信息源扩展
 
-- [ ] D.1: 实现 ZhihuCrawler（知乎文章爬虫）
-- [ ] D.2: 实现 RSSCrawler（RSS订阅爬虫）
-- [ ] D.3: 扩展 NewsSource 模型（新增 source_type）
-- [ ] D.4: 前端新增源类型选择
+- [ ] D.1 实现 ZhihuCrawler（知乎爬虫）
+- [ ] D.2 实现 RSSCrawler（RSS 订阅爬虫）
+- [ ] D.3 扩展 NewsSource 模型（新增 source_type）
+- [ ] D.4 前端新增源类型选择
 
 ---
 
@@ -107,6 +107,21 @@
 - 数据库文件: `./data/ai_crawler.db`
 - V2 设计文档: `./docs/superpowers/specs/ai-news-digest-v2-plan.md`
 - V2 技术规格: `./docs/superpowers/specs/2026-04-09-ai-news-digest-v2-technical-spec.md`
+
+---
+
+## 更新日志
+
+### 2026-04-09
+
+- ✅ Phase C: 前端 Newsletter UI 完成
+  - 新增 InsightCard 组件，集成行为跟踪
+  - 新增 InterestSettings 页面
+  - 新增 InterestTagItem 组件
+- ✅ Phase E: 端到端联调完成
+  - 38 tests passed
+  - 前后端服务正常运行
+- 🚧 Phase F: 文档更新中
 
 ---
 
