@@ -628,10 +628,10 @@ InterestSettingsPage
 | C.1 | 重构 Home.tsx 为 DigestPage | ✅ 完成 |
 | C.2 | 实现 InsightBlock 组件（含辩证分析展示） | ✅ 完成 |
 | C.3 | 实现 FeedbackButtons 组件（show/hide） | ✅ 完成 |
-| C.4 | 实现 useBehaviorCollector Hook | ⏳ 待开始 |
-| C.5 | 新增 /settings/interests 页面 | ⏳ 待开始 |
-| C.6 | 实现 InterestTagItem 组件（权重条+统计） | ⏳ 待开始 |
-| C.7 | 实现日期选择器（历史简报切换） | ⏳ 待开始 |
+| C.4 | 实现 useBehaviorCollector Hook | ✅ 完成 |
+| C.5 | 新增 /settings/interests 页面 | ✅ 完成 |
+| C.6 | 实现 InterestTagItem 组件（权重条+统计） | ✅ 完成 |
+| C.7 | 实现日期选择器（历史简报切换） | ✅ 完成 |
 | C.8 | 实现探索区样式（弱兴趣内容） | ✅ 完成 |
 | C.9 | CSS 样式适配（参考 Newsletter 风格） | ✅ 完成 |
 
@@ -744,7 +744,7 @@ frontend/src/
 |-----------|------|------|----------|
 | M1 | Phase A 完成 | ✅ 完成 | 2026-04-09 |
 | M2 | Phase B 完成 | ✅ 完成 | 2026-04-09 |
-| M3 | Phase C 完成 | 🔄 进行中 | - |
+| M3 | Phase C 完成 | ✅ 完成 | 2026-04-09 |
 | M4 | Phase D 完成 | ⏳ 待开始 | - |
 | M5 | 端到端联调 | ⏳ 待开始 | - |
 | M6 | 文档和发布 | ⏳ 待开始 | - |
