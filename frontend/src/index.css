@@ -4,17 +4,31 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Material Symbols Outlined configuration */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.material-symbols-filled {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* Base body styles */
 body {
-  font-family: var(--font-body);
-  background-color: var(--color-bg);
-  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  background-color: var(--color-background);
+  color: var(--color-on-surface);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 /* Typography utilities */
-.font-display {
-  font-family: var(--font-display);
+.font-serif {
+  font-family: var(--font-serif);
+}
+
+.font-sans {
+  font-family: var(--font-sans);
 }
 
 /* Custom scrollbar */
@@ -24,29 +38,30 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--color-bg-sunken);
+  background: var(--color-surface-container-low);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--color-border-strong);
+  background: var(--color-outline-variant);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-text-muted);
+  background: var(--color-outline);
 }
 
-/* Zone badge transitions */
-.zone-badge {
-  transition: all var(--duration-fast) var(--ease-out);
+/* Selection colors */
+::selection {
+  background-color: rgba(13, 70, 86, 0.1);
 }
 
-/* Insight card hover effect */
-.insight-card {
-  transition: border-color var(--duration-normal) var(--ease-out);
+/* Focus visible styles */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
-/* Staggered entrance animation */
+/* Animations */
 @keyframes fadeSlideIn {
   from {
     opacity: 0;
@@ -58,18 +73,200 @@ body {
   }
 }
 
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 .animate-fade-in {
   animation: fadeSlideIn var(--duration-normal) var(--ease-out) forwards;
 }
 
-/* Markdown styles for article content */
+.animate-slide-in {
+  animation: slideInLeft var(--duration-normal) var(--ease-out) forwards;
+}
+
+/* Hover translate effect for nav items */
+.nav-item {
+  transition: transform var(--duration-fast) var(--ease-out),
+              background-color var(--duration-fast) var(--ease-out);
+}
+
+.nav-item:hover {
+  transform: translateX(4px);
+}
+
+/* Card hover effects */
+.insight-card {
+  transition: background-color var(--duration-normal) var(--ease-out),
+              border-color var(--duration-normal) var(--ease-out),
+              box-shadow var(--duration-normal) var(--ease-out);
+}
+
+.insight-card:hover {
+  background-color: var(--color-surface-container-high);
+}
+
+/* Grayscale image effect */
+.img-grayscale {
+  filter: grayscale(100%);
+  transition: filter var(--duration-slow) var(--ease-out);
+}
+
+.img-grayscale:hover {
+  filter: grayscale(0%);
+}
+
+/* Backdrop blur for headers */
+.backdrop-blur-xl {
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+/* Card styles */
+.card {
+  background-color: var(--color-surface-container-low);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(192, 200, 203, 0.1);
+  box-shadow: var(--shadow-sm);
+}
+
+.card-elevated {
+  background-color: var(--color-surface-container-lowest);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+}
+
+/* Surface tints */
+.surface-low {
+  background-color: var(--color-surface-container-low);
+}
+
+.surface-high {
+  background-color: var(--color-surface-container-high);
+}
+
+.surface-highest {
+  background-color: var(--color-surface-container-highest);
+}
+
+/* Badge styles */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.75rem;
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border-radius: 9999px;
+}
+
+.badge-primary {
+  background-color: rgba(13, 70, 86, 0.1);
+  color: var(--color-primary);
+}
+
+.badge-tertiary {
+  background-color: var(--color-tertiary-fixed);
+  color: var(--color-tertiary);
+}
+
+/* Button styles */
+.btn-primary {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-container) 100%);
+  color: var(--color-on-primary);
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-lg);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  transition: opacity var(--duration-fast) var(--ease-out),
+              transform var(--duration-fast) var(--ease-out);
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+/* Input styles */
+.input {
+  background-color: var(--color-surface-container-lowest);
+  border: 1px solid rgba(192, 200, 203, 0.15);
+  border-radius: var(--radius-lg);
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  transition: border-color var(--duration-fast) var(--ease-out),
+              box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(13, 70, 86, 0.1);
+}
+
+.input::placeholder {
+  color: var(--color-outline);
+}
+
+/* Progress bar */
+.progress-bar {
+  height: 0.375rem;
+  background-color: var(--color-surface-container-highest);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background-color: var(--color-primary);
+  border-radius: 9999px;
+  transition: width var(--duration-normal) var(--ease-out);
+}
+
+/* Status dot */
+.status-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+}
+
+.status-dot-healthy {
+  background-color: #22c55e;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.4);
+}
+
+.status-dot-error {
+  background-color: var(--color-error);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Markdown content styles */
 .markdown-content h1 {
-  font-family: var(--font-display);
+  font-family: var(--font-serif);
   @apply text-2xl font-bold mb-4 mt-6;
 }
 
 .markdown-content h2 {
-  font-family: var(--font-display);
+  font-family: var(--font-serif);
   @apply text-xl font-bold mb-3 mt-5;
 }
 
@@ -90,7 +287,7 @@ body {
 }
 
 .markdown-content code {
-  @apply bg-bg-sunken px-1.5 py-0.5 rounded text-sm font-mono;
+  @apply bg-surface-container-low px-1.5 py-0.5 rounded text-sm font-mono;
 }
 
 .markdown-content pre {
@@ -102,7 +299,7 @@ body {
 }
 
 .markdown-content blockquote {
-  @apply border-l-4 border-accent pl-4 italic text-text-secondary my-4;
+  @apply border-l-4 border-primary pl-4 italic text-on-surface-variant my-4;
 }
 
 .markdown-content img {
@@ -110,7 +307,7 @@ body {
 }
 
 .markdown-content a {
-  @apply text-accent hover:underline;
+  @apply text-primary hover:underline;
 }
 
 .markdown-content table {
@@ -119,26 +316,44 @@ body {
 
 .markdown-content th,
 .markdown-content td {
-  @apply border border-border px-3 py-2 text-left;
+  @apply border border-outline-variant px-3 py-2 text-left;
 }
 
 .markdown-content th {
-  @apply bg-bg-sunken font-semibold;
+  @apply bg-surface-container-low font-semibold;
 }
 
 /* Tailwind color extensions */
 @layer utilities {
-  .text-text-primary { color: var(--color-text-primary); }
-  .text-text-secondary { color: var(--color-text-secondary); }
-  .text-text-muted { color: var(--color-text-muted); }
-  .text-accent { color: var(--color-accent); }
+  .text-primary { color: var(--color-primary); }
+  .text-on-primary { color: var(--color-on-primary); }
+  .text-secondary { color: var(--color-secondary); }
+  .text-on-secondary { color: var(--color-on-secondary); }
+  .text-tertiary { color: var(--color-tertiary); }
+  .text-on-tertiary { color: var(--color-on-tertiary); }
+  .text-error { color: var(--color-error); }
+  .text-on-error { color: var(--color-on-error); }
+  .text-on-surface { color: var(--color-on-surface); }
+  .text-on-surface-variant { color: var(--color-on-surface-variant); }
+  .text-outline { color: var(--color-outline); }
+  .text-outline-variant { color: var(--color-outline-variant); }
 
-  .bg-bg { background-color: var(--color-bg); }
-  .bg-bg-elevated { background-color: var(--color-bg-elevated); }
-  .bg-bg-sunken { background-color: var(--color-bg-sunken); }
-  .bg-accent-soft { background-color: var(--color-accent-soft); }
+  .bg-primary { background-color: var(--color-primary); }
+  .bg-primary-container { background-color: var(--color-primary-container); }
+  .bg-surface { background-color: var(--color-surface); }
+  .bg-surface-container-low { background-color: var(--color-surface-container-low); }
+  .bg-surface-container-high { background-color: var(--color-surface-container-high); }
+  .bg-surface-container-highest { background-color: var(--color-surface-container-highest); }
+  .bg-surface-container-lowest { background-color: var(--color-surface-container-lowest); }
+  .bg-tertiary-container { background-color: var(--color-tertiary-container); }
+  .bg-tertiary-fixed { background-color: var(--color-tertiary-fixed); }
+  .bg-error-container { background-color: var(--color-error-container); }
+  .bg-secondary-container { background-color: var(--color-secondary-container); }
 
-  .border-border { border-color: var(--color-border); }
-  .border-border-strong { border-color: var(--color-border-strong); }
-  .border-accent { border-color: var(--color-accent); }
+  .border-primary { border-color: var(--color-primary); }
+  .border-outline { border-color: var(--color-outline); }
+  .border-outline-variant { border-color: var(--color-outline-variant); }
+  .border-surface-container { border-color: var(--color-surface-container); }
+  .border-tertiary { border-color: var(--color-tertiary); }
+  .border-error { border-color: var(--color-error); }
 }

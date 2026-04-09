@@ -11,99 +11,92 @@ export function InterestTagItem({ tag, onStatusChange, onDelete }: InterestTagIt
     tag.weight >= 1.3 ? 'main' : tag.weight >= 0.7 ? 'explore' : 'surprise';
 
   const zoneConfig = {
-    main: { label: '主航道', bg: 'bg-zinc-900', text: 'text-white' },
-    explore: { label: '探索区', bg: 'bg-amber-100', text: 'text-amber-800' },
-    surprise: { label: '惊喜箱', bg: 'bg-violet-100', text: 'text-violet-800' },
+    main: { label: 'Main Channel', bg: 'bg-[#0d4656]/10 text-[#0d4656]' },
+    explore: { label: 'Background', bg: 'bg-[#ffdcc0] text-[#5d3813]' },
+    surprise: { label: 'Frozen', bg: 'bg-[#e4e2e2] text-[#5e5e5e]' },
   };
 
   const config = zoneConfig[zone as keyof typeof zoneConfig];
 
-  // Calculate engagement rate
-  const totalSignals = tag.show_count + tag.hide_count + tag.click_count;
-  const engagementRate = totalSignals > 0
-    ? ((tag.show_count + tag.click_count) / totalSignals * 100).toFixed(0)
-    : '0';
+  // Calculate strength percentage (normalized from weight, max ~2.5)
+  const strengthPercent = Math.min(100, (tag.weight / 2.5) * 100);
 
   return (
-    <div className="group bg-white rounded-lg border border-border p-4 hover:shadow-md transition-shadow">
+    <div className="group p-4 rounded-lg bg-[#f4f4f2] hover:bg-[#e8e8e6] transition-colors border-l-4 border-transparent hover:border-l-[#0d4656]">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-2">
-            <h4 className="font-medium text-text-primary truncate">{tag.tag}</h4>
-            <span className={`shrink-0 text-xs px-2 py-0.5 rounded ${config.bg} ${config.text}`}>
+          <div className="flex items-center gap-2 mb-3">
+            <h4 className="font-bold text-sm text-[#1a1c1b] truncate">{tag.tag}</h4>
+            <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full uppercase font-bold tracking-wider ${config.bg}`}>
               {config.label}
             </span>
             {tag.status === 'frozen' && (
-              <span className="shrink-0 text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-500">
-                已冻结
+              <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-[#e4e2e2] text-[#5e5e5e] italic uppercase tracking-wider font-bold">
+                Frozen
               </span>
             )}
           </div>
 
-          {/* Weight bar */}
+          {/* Strength progress bar */}
           <div className="mb-3">
-            <div className="flex items-center justify-between text-xs text-text-muted mb-1">
-              <span>权重</span>
-              <span className="font-mono">{tag.weight.toFixed(2)}</span>
+            <div className="flex items-center justify-between text-[10px] text-[#5e5e5e] uppercase tracking-tighter mb-1">
+              <span>Strength</span>
+              <span className="font-mono">{strengthPercent.toFixed(0)}%</span>
             </div>
-            <div className="h-1.5 bg-bg-sunken rounded-full overflow-hidden">
+            <div className="h-1 bg-[#e2e3e1] rounded-full overflow-hidden">
               <div
-                className="h-full bg-accent rounded-full transition-all"
-                style={{ width: `${Math.min(100, (tag.weight / 2.5) * 100)}%` }}
+                className="h-full bg-[#0d4656] rounded-full transition-all"
+                style={{ width: `${strengthPercent}%` }}
               />
             </div>
           </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-4 gap-2 text-xs">
-            <div className="text-center p-2 bg-bg-sunken rounded">
-              <div className="font-mono text-text-primary">{tag.show_count}</div>
-              <div className="text-text-muted">展示</div>
+          {/* Stats row */}
+          <div className="flex items-center gap-4 text-[10px] text-[#5e5e5e]">
+            <div className="flex items-center gap-1">
+              <span className="material-symbols-outlined text-xs" style={{ fontVariationSettings: "'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24" }}>
+                visibility
+              </span>
+              <span>{tag.show_count}</span>
             </div>
-            <div className="text-center p-2 bg-bg-sunken rounded">
-              <div className="font-mono text-text-primary">{tag.click_count}</div>
-              <div className="text-text-muted">点击</div>
+            <div className="flex items-center gap-1">
+              <span className="material-symbols-outlined text-xs" style={{ fontVariationSettings: "'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24" }}>
+                handyman
+              </span>
+              <span>{tag.click_count}</span>
             </div>
-            <div className="text-center p-2 bg-bg-sunken rounded">
-              <div className="font-mono text-text-primary">
+            <div className="flex items-center gap-1">
+              <span className="material-symbols-outlined text-xs" style={{ fontVariationSettings: "'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24" }}>
+                schedule
+              </span>
+              <span>
                 {tag.total_time_spent > 60
                   ? `${(tag.total_time_spent / 60).toFixed(1)}m`
                   : `${tag.total_time_spent.toFixed(0)}s`}
-              </div>
-              <div className="text-text-muted">阅读</div>
-            </div>
-            <div className="text-center p-2 bg-bg-sunken rounded">
-              <div className="font-mono text-text-primary">{engagementRate}%</div>
-              <div className="text-text-muted">互动</div>
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Actions */}
+        {/* Hover action buttons */}
         <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
             onClick={() => onStatusChange(tag.id, tag.status === 'frozen' ? 'active' : 'frozen')}
-            className="p-1.5 text-text-muted hover:text-text-primary hover:bg-bg-sunken rounded transition-colors"
-            title={tag.status === 'frozen' ? '激活' : '冻结'}
+            className="p-1.5 text-[#5e5e5e] hover:text-[#5d3813] hover:bg-[#ffdcc0]/30 rounded transition-colors"
+            title={tag.status === 'frozen' ? 'Thaw' : 'Freeze'}
           >
-            {tag.status === 'frozen' ? (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
-              </svg>
-            ) : (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-              </svg>
-            )}
+            <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24" }}>
+              ac_unit
+            </span>
           </button>
           <button
             onClick={() => onDelete(tag.id)}
-            className="p-1.5 text-text-muted hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-            title="删除"
+            className="p-1.5 text-[#5e5e5e] hover:text-[#ba1a1a] hover:bg-[#ffdad6]/50 rounded transition-colors"
+            title="Delete"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
+            <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24" }}>
+              delete
+            </span>
           </button>
         </div>
       </div>

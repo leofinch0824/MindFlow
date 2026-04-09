@@ -54,98 +54,226 @@ export default function Sources() {
     setShowModal(true);
   };
 
+  // Calculate stats for bento grid
+  const healthyCount = sources.length;
+  const criticalCount = sources.filter(s => {
+    if (!s.last_fetch_at) return false;
+    const lastFetch = dayjs(s.last_fetch_at);
+    const hoursAgo = dayjs().diff(lastFetch, 'hours');
+    return hoursAgo > 24;
+  }).length;
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-gray-900">新闻源管理</h2>
-        <div className="flex gap-2">
+    <div className="space-y-8">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-1 h-6 bg-[#0d4656]"></div>
+            <span className="font-['Manrope'] uppercase tracking-widest text-[11px] text-[#5e5e5e]">Information Architecture</span>
+          </div>
+          <h1 className="text-5xl md:text-6xl font-['Newsreader'] italic leading-tight text-[#1a1c1b]">Source Management</h1>
+        </div>
+        <div className="flex gap-3">
           <button
-            onClick={() => setShowUrlModal(true)}
-            className="inline-flex items-center px-4 py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 transition-colors"
+            onClick={() => sources.forEach(s => handleFetch(s.id))}
+            className="flex items-center gap-2 border border-[#c0c8cb]/30 px-5 py-2.5 rounded-lg text-sm font-semibold text-[#1a1c1b] hover:bg-[#f4f4f2] transition-colors"
           >
-            <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-            </svg>
-            从链接添加
+            <span className="material-symbols-outlined text-base" style={{ fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}>sync</span>
+            Manual Crawl All
           </button>
           <button
             onClick={() => {
               setEditingSource(null);
               setShowModal(true);
             }}
-            className="inline-flex items-center px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600 transition-colors"
+            className="flex items-center gap-2 bg-gradient-to-br from-[#0d4656] to-[#2c5e6e] px-6 py-2.5 rounded-lg text-sm font-semibold text-white shadow-lg hover:translate-y-[-1px] transition-all"
           >
-            <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            添加新闻源
+            <span className="material-symbols-outlined text-base" style={{ fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}>add_link</span>
+            Add New Source
           </button>
         </div>
       </div>
 
-      {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="w-8 h-8 border-3 border-primary-500 border-t-transparent rounded-full animate-spin" />
+      {/* Bento Status Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="md:col-span-1 bg-[#f4f4f2] p-6 rounded-xl flex flex-col justify-between">
+          <span className="font-['Manrope'] uppercase tracking-widest text-[10px] text-[#5e5e5e]">Healthy Links</span>
+          <div className="flex items-baseline gap-2 mt-4">
+            <span className="text-4xl font-['Newsreader'] italic">{healthyCount}</span>
+            <span className="text-xs text-green-600 font-bold flex items-center gap-1">
+              <span className="material-symbols-outlined text-[10px]" style={{ fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}>arrow_upward</span>
+              Active
+            </span>
+          </div>
         </div>
-      ) : sources.length === 0 ? (
-        <div className="text-center py-20 bg-white rounded-xl border border-gray-100">
-          <div className="text-5xl mb-4">📡</div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">暂无新闻源</h3>
-          <p className="text-sm text-gray-500 mb-4">添加你的第一个新闻来源来开始聚合资讯</p>
-          <button
-            onClick={() => setShowModal(true)}
-            className="inline-flex items-center px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600 transition-colors"
-          >
-            添加新闻源
-          </button>
+        <div className="md:col-span-1 bg-[#f4f4f2] p-6 rounded-xl flex flex-col justify-between">
+          <span className="font-['Manrope'] uppercase tracking-widest text-[10px] text-[#5e5e5e]">Latency</span>
+          <div className="flex items-baseline gap-2 mt-4">
+            <span className="text-4xl font-['Newsreader'] italic">0.8s</span>
+            <span className="text-xs text-[#5e5e5e] font-medium">Avg Crawl</span>
+          </div>
         </div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {sources.map((source) => (
-            <div key={source.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <h3 className="font-semibold text-gray-900">{source.name}</h3>
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 mt-1">
-                    {source.source_type === 'mptext' ? '微信公众号' : '自定义'}
-                  </span>
-                </div>
-              </div>
-              <div className="space-y-2 text-sm text-gray-500 mb-4">
-                <p>文章数：{source.article_count}</p>
-                {source.last_fetch_at && (
-                  <p>上次抓取：{dayjs(source.last_fetch_at).format('MM-DD HH:mm')}</p>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleFetch(source.id)}
-                  disabled={fetchingId === source.id}
-                  className="flex-1 inline-flex items-center justify-center px-3 py-1.5 bg-primary-50 text-primary-700 rounded-lg text-sm font-medium hover:bg-primary-100 disabled:opacity-50 transition-colors"
-                >
-                  {fetchingId === source.id ? (
-                    <div className="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    '抓取'
-                  )}
-                </button>
-                <button
-                  onClick={() => handleEdit(source)}
-                  className="inline-flex items-center justify-center px-3 py-1.5 bg-gray-50 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-100 transition-colors"
-                >
-                  编辑
-                </button>
-                <button
-                  onClick={() => handleDelete(source.id)}
-                  className="inline-flex items-center justify-center px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors"
-                >
-                  删除
-                </button>
-              </div>
+        <div className="md:col-span-2 bg-[#e2e3e1] p-6 rounded-xl flex flex-col justify-between relative overflow-hidden">
+          <div className="relative z-10">
+            <span className="font-['Manrope'] uppercase tracking-widest text-[10px] text-[#0d4656]">Critical Issues</span>
+            <div className="flex items-baseline gap-2 mt-4">
+              <span className="text-4xl font-['Newsreader'] italic text-[#ba1a1a]">{criticalCount}</span>
+              <span className="text-xs text-[#ba1a1a] font-medium">Action required</span>
             </div>
-          ))}
+          </div>
+          <div className="absolute right-[-10%] bottom-[-20%] opacity-10">
+            <span className="material-symbols-outlined text-9xl text-[#0d4656]" style={{ fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}>warning</span>
+          </div>
         </div>
-      )}
+      </div>
+
+      {/* Sources Table */}
+      <div className="bg-[#f4f4f2] rounded-2xl overflow-hidden">
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="w-8 h-8 border-2 border-[#0d4656] border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : sources.length === 0 ? (
+          <div className="text-center py-20">
+            <div className="w-24 h-24 bg-[#eeeeec] rounded-full flex items-center justify-center mb-6 mx-auto">
+              <span className="material-symbols-outlined text-4xl text-[#c0c8cb]" style={{ fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}>cloud_off</span>
+            </div>
+            <h2 className="text-3xl font-['Newsreader'] italic mb-2 text-[#1a1c1b]">No Active Signals</h2>
+            <p className="max-w-md text-[#40484b] text-sm leading-relaxed mb-8 mx-auto">
+              Your atelier is currently quiet. Connect a source to begin the curation process and receive your first briefing.
+            </p>
+            <button
+              onClick={() => setShowModal(true)}
+              className="bg-[#0d4656] text-white px-8 py-3 rounded-lg font-semibold shadow-xl hover:opacity-90 transition-opacity"
+            >
+              Start Connection
+            </button>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-[#e8e8e6]/50 border-b border-[#c0c8cb]/10">
+                  <th className="px-8 py-5 font-['Manrope'] uppercase tracking-widest text-[11px] text-[#5e5e5e]">Source Identity</th>
+                  <th className="px-6 py-5 font-['Manrope'] uppercase tracking-widest text-[11px] text-[#5e5e5e]">Type</th>
+                  <th className="px-6 py-5 font-['Manrope'] uppercase tracking-widest text-[11px] text-[#5e5e5e]">Last Indexed</th>
+                  <th className="px-6 py-5 font-['Manrope'] uppercase tracking-widest text-[11px] text-[#5e5e5e]">Status</th>
+                  <th className="px-8 py-5 text-right font-['Manrope'] uppercase tracking-widest text-[11px] text-[#5e5e5e]">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#c0c8cb]/10">
+                {sources.map((source) => {
+                  const isHealthy = source.last_fetch_at && dayjs().diff(dayjs(source.last_fetch_at), 'hours') < 24;
+                  return (
+                    <tr key={source.id} className={`hover:bg-[#e2e3e1]/50 transition-colors group ${!isHealthy && source.last_fetch_at ? 'bg-[#ffdad6]/5' : ''}`}>
+                      <td className="px-8 py-6">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center text-[#2c5e6e]">
+                            <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}>newspaper</span>
+                          </div>
+                          <div>
+                            <div className="font-['Newsreader'] text-lg italic text-[#1a1c1b]">{source.name}</div>
+                            <div className="text-xs text-[#71787c] font-medium tracking-wide">{source.api_base_url}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-6">
+                        <span className="px-3 py-1 bg-[#e2e3e1] text-[#5e5e5e] text-[10px] font-bold uppercase tracking-widest rounded-full">
+                          {source.source_type === 'mptext' ? 'WeChat' : 'Custom'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-6 text-sm text-[#40484b]">
+                        {source.last_fetch_at ? dayjs(source.last_fetch_at).format('MM-DD HH:mm') : 'Never'}
+                      </td>
+                      <td className="px-6 py-6">
+                        <div className="flex items-center gap-2">
+                          {isHealthy ? (
+                            <>
+                              <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]"></div>
+                              <span className="text-[11px] font-bold text-green-700 uppercase tracking-tight">Healthy</span>
+                            </>
+                          ) : (
+                            <>
+                              <div className="w-2 h-2 rounded-full bg-[#ba1a1a] animate-pulse"></div>
+                              <span className="text-[11px] font-bold text-[#ba1a1a] uppercase tracking-tight">Needs Attention</span>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-8 py-6 text-right">
+                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => handleFetch(source.id)}
+                            disabled={fetchingId === source.id}
+                            className="p-2 text-[#71787c] hover:text-[#0d4656] hover:bg-white rounded-lg transition-all"
+                            title="Fetch Now"
+                          >
+                            <span className="material-symbols-outlined text-lg" style={{ fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}>sync</span>
+                          </button>
+                          <button
+                            onClick={() => handleEdit(source)}
+                            className="p-2 text-[#71787c] hover:text-[#0d4656] hover:bg-white rounded-lg transition-all"
+                            title="Edit Source"
+                          >
+                            <span className="material-symbols-outlined text-lg" style={{ fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}>edit</span>
+                          </button>
+                          <button
+                            onClick={() => handleDelete(source.id)}
+                            className="p-2 text-[#71787c] hover:text-[#ba1a1a] hover:bg-white rounded-lg transition-all"
+                            title="Delete Source"
+                          >
+                            <span className="material-symbols-outlined text-lg" style={{ fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}>delete</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Quick Add Footer */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start border-t border-[#c0c8cb]/20 pt-12">
+        <div className="md:col-span-1">
+          <h3 className="text-2xl font-['Newsreader'] italic mb-2 text-[#1a1c1b]">Ingest New Signal</h3>
+          <p className="text-sm text-[#40484b] leading-relaxed">
+            Add a new URL, RSS feed, or social profile to your digital atelier. Our crawlers will analyze the intellectual density before indexing.
+          </p>
+        </div>
+        <div className="md:col-span-2">
+          <div className="bg-white p-1 rounded-xl shadow-sm ring-1 ring-[#c0c8cb]/15 flex flex-col sm:flex-row gap-1">
+            <input
+              type="text"
+              placeholder="https://source-url.com/feed"
+              className="flex-1 bg-transparent border-none focus:ring-0 px-4 py-3 text-sm placeholder:text-[#71787c]/50 text-[#1a1c1b]"
+            />
+            <div className="flex items-center gap-1">
+              <select className="bg-[#f4f4f2] border-none rounded-lg text-[10px] font-bold uppercase tracking-widest text-[#5e5e5e] focus:ring-0 cursor-pointer appearance-none px-4 py-2 pr-8 relative">
+                <option>Auto-Detect</option>
+                <option>RSS</option>
+                <option>URL</option>
+                <option>WeChat</option>
+              </select>
+              <button
+                onClick={() => setShowUrlModal(true)}
+                className="bg-[#0d4656] text-white px-6 py-2.5 rounded-lg text-sm font-semibold hover:opacity-90 active:scale-[0.98] transition-all"
+              >
+                Connect
+              </button>
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <span className="text-[10px] text-[#71787c] font-['Manrope'] uppercase tracking-wider self-center mr-2">Suggestions:</span>
+            <button className="px-3 py-1 bg-[#f4f4f2] border border-[#c0c8cb]/10 rounded-full text-[10px] text-[#5e5e5e] hover:bg-[#e8e8e6] transition-colors">Aeon Magazine</button>
+            <button className="px-3 py-1 bg-[#f4f4f2] border border-[#c0c8cb]/10 rounded-full text-[10px] text-[#5e5e5e] hover:bg-[#e8e8e6] transition-colors">The Browser</button>
+            <button className="px-3 py-1 bg-[#f4f4f2] border border-[#c0c8cb]/10 rounded-full text-[10px] text-[#5e5e5e] hover:bg-[#e8e8e6] transition-colors">Ribbonfarm</button>
+          </div>
+        </div>
+      </div>
 
       {showModal && (
         <SourceModal
@@ -231,7 +359,7 @@ function SourceModal({ source, onClose, onSave }: SourceModalProps) {
               onChange={(e) => setName(e.target.value)}
               required
               placeholder="例如：科技资讯"
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0d4656]"
             />
           </div>
           <div>
@@ -239,7 +367,7 @@ function SourceModal({ source, onClose, onSave }: SourceModalProps) {
             <select
               value={sourceType}
               onChange={(e) => setSourceType(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0d4656]"
             >
               <option value="mptext">微信公众号 (MPText)</option>
               <option value="custom">自定义 REST API</option>
@@ -252,7 +380,7 @@ function SourceModal({ source, onClose, onSave }: SourceModalProps) {
               value={apiBaseUrl}
               onChange={(e) => setApiBaseUrl(e.target.value)}
               required
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0d4656]"
             />
           </div>
           <div>
@@ -262,7 +390,7 @@ function SourceModal({ source, onClose, onSave }: SourceModalProps) {
               value={authKey}
               onChange={(e) => setAuthKey(e.target.value)}
               placeholder="MPText API Key（可选）"
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0d4656]"
             />
           </div>
           {sourceType === 'mptext' && (
@@ -274,7 +402,7 @@ function SourceModal({ source, onClose, onSave }: SourceModalProps) {
                 onChange={(e) => setFakeid(e.target.value)}
                 required
                 placeholder="在 MPText 平台获取的 fakeid"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0d4656]"
               />
             </div>
           )}
@@ -289,7 +417,7 @@ function SourceModal({ source, onClose, onSave }: SourceModalProps) {
             <button
               type="submit"
               disabled={saving}
-              className="px-4 py-2 text-sm font-medium text-white bg-primary-500 rounded-lg hover:bg-primary-600 disabled:opacity-50 transition-colors"
+              className="px-4 py-2 text-sm font-medium text-white bg-[#0d4656] rounded-lg hover:bg-[#2c5e6e] disabled:opacity-50 transition-colors"
             >
               {saving ? '保存中...' : '保存'}
             </button>
@@ -382,12 +510,12 @@ function AddFromUrlModal({ onClose, onSuccess }: AddFromUrlModalProps) {
                   setParsedAccount(null);
                 }}
                 placeholder="https://mp.weixin.qq.com/s/..."
-                className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0d4656]"
               />
               <button
                 onClick={handleParse}
                 disabled={parsing || !url.trim()}
-                className="px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600 disabled:opacity-50 transition-colors"
+                className="px-4 py-2 bg-[#0d4656] text-white rounded-lg text-sm font-medium hover:bg-[#2c5e6e] disabled:opacity-50 transition-colors"
               >
                 {parsing ? '解析中...' : '解析'}
               </button>
@@ -454,7 +582,7 @@ function AddFromUrlModal({ onClose, onSuccess }: AddFromUrlModalProps) {
           <button
             onClick={handleConfirm}
             disabled={!parsedAccount || saving}
-            className="px-4 py-2 text-sm font-medium text-white bg-green-500 rounded-lg hover:bg-green-600 disabled:opacity-50 transition-colors"
+            className="px-4 py-2 text-sm font-medium text-white bg-[#0d4656] rounded-lg hover:bg-[#2c5e6e] disabled:opacity-50 transition-colors"
           >
             {saving ? '添加中...' : '确认添加'}
           </button>
