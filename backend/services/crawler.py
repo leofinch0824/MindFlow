@@ -363,15 +363,10 @@ async def fetch_source_articles(source_id: int) -> Tuple[int, str]:
             return 0, "MPText 配置缺少 fakeid"
 
         try:
-            # Get articles list (max 20 per request, iterate if needed)
+            # Get only the latest article (size=1) for daily digest
             all_articles = []
-            articles = await get_articles_by_fakeid(fakeid, begin=0, size=20)
+            articles = await get_articles_by_fakeid(fakeid, begin=0, size=1)
             all_articles.extend(articles)
-
-            # If there might be more articles, fetch again
-            if len(articles) == 20:
-                more_articles = await get_articles_by_fakeid(fakeid, begin=20, size=20)
-                all_articles.extend(more_articles)
 
             added_count = 0
 
