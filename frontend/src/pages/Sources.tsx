@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { sourcesApi, type NewsSource, type ParsedAccount } from '../api/client';
+import { sourcesApi, type NewsSource, type ParsedAccount } from '../api/newsletter';
 import dayjs from 'dayjs';
 
 export default function Sources() {
@@ -182,7 +182,7 @@ function SourceModal({ source, onClose, onSave }: SourceModalProps) {
   const [sourceType, setSourceType] = useState(source?.source_type || 'mptext');
   const [apiBaseUrl, setApiBaseUrl] = useState(source?.api_base_url || 'https://down.mptext.top');
   const [authKey, setAuthKey] = useState(source?.auth_key || '');
-  const [fakeid, setFakeid] = useState(source?.config?.fakeid || '');
+  const [fakeid, setFakeid] = useState<string>(source?.config?.fakeid as string || '');
   const [saving, setSaving] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {

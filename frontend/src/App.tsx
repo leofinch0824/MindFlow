@@ -1,6 +1,4 @@
-import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
-import Home from './pages/Home';
-import Article from './pages/Article';
+import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import Sources from './pages/Sources';
 import Settings from './pages/Settings';
 import Newsletter from './pages/Newsletter';
@@ -10,7 +8,6 @@ function Navigation() {
   const location = useLocation();
 
   const navItems = [
-    { path: '/', label: '资讯流', icon: '📰' },
     { path: '/newsletter', label: '简报', icon: '📮' },
     { path: '/interests', label: '兴趣', icon: '🎯' },
     { path: '/sources', label: '新闻源', icon: '📡' },
@@ -53,8 +50,7 @@ export default function App() {
         <Navigation />
         <main className="max-w-6xl mx-auto px-4 py-6">
           <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/article/:id" element={<Article />} />
+            <Route path="/" element={<Navigate to="/newsletter" replace />} />
             <Route path="/newsletter" element={<Newsletter />} />
             <Route path="/interests" element={<InterestSettings />} />
             <Route path="/sources" element={<Sources />} />

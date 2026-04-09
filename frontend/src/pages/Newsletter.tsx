@@ -51,7 +51,14 @@ function InsightCard({ insight, onTagClick }: { insight: InsightRef; onTagClick?
             </button>
           ))}
         </div>
-        <span className="text-xs text-text-muted">{insight.source_name}</span>
+        <a
+          href={insight.source_article_link}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-accent hover:underline"
+        >
+          {insight.source_name} →
+        </a>
       </div>
     </article>
   );

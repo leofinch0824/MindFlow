@@ -17,6 +17,37 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
   return res.json();
 }
 
+// === Shared Types ===
+export interface NewsSource {
+  id: number;
+  name: string;
+  source_type: string;
+  api_base_url: string;
+  auth_key: string;
+  config: Record<string, unknown>;
+  created_at: string | null;
+  updated_at: string | null;
+  last_fetch_at: string | null;
+  article_count: number;
+}
+
+export interface ParsedAccount {
+  fakeid: string;
+  nickname: string;
+  alias: string;
+  is_verify: number;
+  verify_info: string;
+  signature: string;
+  avatar: string;
+}
+
+export interface AIConfig {
+  provider: string;
+  base_url: string;
+  model: string;
+  updated_at: string | null;
+}
+
 // === Digest Types ===
 export interface DigestSection {
   domain: string;
@@ -99,6 +130,62 @@ export interface DigestFeedback {
   anchor_id: number;
   action: BehaviorAction;
 }
+
+// === Sources API ===
+export const sourcesApi = {
+  list: () => fetchApi<NewsSource[]>('/sources'),
+
+  get: (id: number) => fetchApi<NewsSource>(`/sources/${id}`),
+
+  create: (data: Omit<NewsSource, 'id' | 'created_at' | 'updated_at' | 'last_fetch_at' | 'article_count'>) =>
+    fetchApi<NewsSource>('/sources', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: number, data: Partial<NewsSource>) =>
+    fetchApi<NewsSource>(`/sources/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: number) =>
+    fetchApi<{ success: boolean; message: string }>(`/sources/${id}`, {
+      method: 'DELETE',
+    }),
+
+  fetch: (id: number) =>
+    fetchApi<{ success: boolean; message: string; articles_added: number }>(`/sources/${id}/fetch`, {
+      method: 'POST',
+    }),
+
+  parseUrl: (url: string) =>
+    fetchApi<ParsedAccount>('/sources/parse-url', {
+      method: 'POST',
+      body: JSON.stringify({ url }),
+    }),
+};
+
+// === Config API ===
+export const configApi = {
+  getAI: () => fetchApi<AIConfig>('/config/ai'),
+
+  updateAI: (data: Omit<AIConfig, 'updated_at'>) =>
+    fetchApi('/config/ai', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  testAI: () => fetchApi<{ success: boolean; message: string }>('/config/ai/test', { method: 'POST' }),
+
+  getSchedule: () => fetchApi<{ jobs: Array<{ id: string; name: string; next_run: string | null }> }>('/config/schedule'),
+
+  updateSchedule: (hours: number[]) =>
+    fetchApi('/config/schedule', {
+      method: 'PUT',
+      body: JSON.stringify(hours),
+    }),
+};
 
 // === Digest API ===
 export const digestsApi = {

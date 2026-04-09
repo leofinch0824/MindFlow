@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { configApi, type AIConfig } from '../api/client';
+import { configApi, type AIConfig } from '../api/newsletter';
 
 export default function Settings() {
   const [aiConfig, setAiConfig] = useState<AIConfig | null>(null);
