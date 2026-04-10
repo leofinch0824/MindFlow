@@ -61,6 +61,16 @@ async def init_db():
         await conn.run_sync(Base.metadata.create_all)
 
 
+async def check_db_health() -> bool:
+    """Check whether PostgreSQL connection is available."""
+    try:
+        async with async_engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        return True
+    except Exception:
+        return False
+
+
 def init_db_sync():
     """Sync version for migration scripts"""
     from models import Base

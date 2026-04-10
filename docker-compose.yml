@@ -12,7 +12,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U mindflow"]
+      test: ["CMD-SHELL", "pg_isready -U mindflow -d mindflow"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -35,9 +35,6 @@ services:
       - POSTGRES_DB=mindflow
       - POSTGRES_USER=mindflow
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-mindflow_dev}
-    volumes:
-      - ./data:/app/data
-      - ./backend/.env:/app/.env:ro
     healthcheck:
       test:
         - CMD
