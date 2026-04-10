@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Query
-from models import ArticleResponse, ArticleListResponse
+from schemas import ArticleResponse, ArticleListResponse
 from database import get_articles, get_article_by_id, update_article_summary, get_all_sources
 from services.ai import summarize_text
 import json

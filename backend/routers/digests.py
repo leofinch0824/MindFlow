@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from typing import Optional
 from datetime import date, datetime
 
-from models import (
+from schemas import (
     DailyDigestResponse,
     DigestGenerateRequest,
     AnchorPointResponse

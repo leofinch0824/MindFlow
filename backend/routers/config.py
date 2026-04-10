@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from models import AIConfigUpdate, AIConfigResponse
+from schemas import AIConfigUpdate, AIConfigResponse
 from database import get_ai_config, update_ai_config
 from services.ai import test_ai_connection
 from services.scheduler import get_jobs, update_schedule

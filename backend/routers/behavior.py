@@ -7,7 +7,7 @@ Behavior feedback and log endpoints for Phase B
 from fastapi import APIRouter, HTTPException
 from typing import Optional
 
-from models import (
+from schemas import (
     BehaviorLogCreate,
     BehaviorLogBatchCreate,
     DigestFeedbackCreate,

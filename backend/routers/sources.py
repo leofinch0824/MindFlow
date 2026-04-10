@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from models import NewsSourceCreate, NewsSourceUpdate, NewsSourceResponse, FetchResponse
+from schemas import NewsSourceCreate, NewsSourceUpdate, NewsSourceResponse, FetchResponse
 from database import (
     get_all_sources, get_source_by_id, create_source,
     update_source, delete_source, add_fetch_log

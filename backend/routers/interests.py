@@ -7,7 +7,7 @@ Interest tag CRUD and stats endpoints for Phase B
 from fastapi import APIRouter, HTTPException
 from typing import Optional
 
-from models import (
+from schemas import (
     UserInterestTagCreate,
     UserInterestTagUpdate,
     UserInterestTagResponse,
