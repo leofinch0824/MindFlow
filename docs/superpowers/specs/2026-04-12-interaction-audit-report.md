@@ -112,4 +112,5 @@
   - `docs/superpowers/specs/2026-04-12-interaction-evidence-matrix.md`
   - `docs/superpowers/specs/2026-04-12-interaction-gap-log.md`
   - `docs/superpowers/specs/2026-04-12-interaction-deep-dive-questions.md`
-- 交付说明：后续若继续扩展矩阵或 gap-log，必须同步维护本报告的 Green / Yellow / Red 汇总、优先级分布与深挖议题排序，避免交付包内部口径漂移。
+- 下一步交接：请按深挖议题顺序进行产品决策，再进入研发可执行 PRD 编写。
+- 交付说明：后续若继续扩展 report、matrix、gap-log 或 deep-dive questions，必须同步维护四份审查交付件之间的 Green / Yellow / Red 汇总、优先级分布、gap ID 映射与深挖议题排序，避免交付包内部口径漂移。
