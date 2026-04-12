@@ -103,3 +103,13 @@
 6. **状态设计不可省略。** 每个关键页面至少要写 loading、empty、error、success 四类状态；若页面允许“新建模式”与“读取已有配置模式”切换，也要单独定义切换条件。
 7. **批量动作必须给操作者汇总反馈。** 任何批处理（例如 `Manual Crawl All`）都要定义整体进度、完成计数、失败清单和重试入口，不能仅依赖单条提示。
 8. **深挖结论要先于实施计划冻结。** `DDQ-01` ~ `DDQ-07` 的决策结果应先回填 PRD/TECH，再进入新的 implementation plan；未定事项不得以占位语句进入实施计划。
+
+## 8. 交付完成
+
+- 质量门结果：2026-04-12 已完成四份交付件的占位词扫描、主类别覆盖检查与非 Green 行 / gap-log 一致性检查，结果均通过。
+- 交付包清单：
+  - `docs/superpowers/specs/2026-04-12-interaction-audit-report.md`
+  - `docs/superpowers/specs/2026-04-12-interaction-evidence-matrix.md`
+  - `docs/superpowers/specs/2026-04-12-interaction-gap-log.md`
+  - `docs/superpowers/specs/2026-04-12-interaction-deep-dive-questions.md`
+- 交付说明：后续若继续扩展矩阵或 gap-log，必须同步维护本报告的 Green / Yellow / Red 汇总、优先级分布与深挖议题排序，避免交付包内部口径漂移。
