@@ -13,13 +13,13 @@ export default function TopNav() {
 
   return (
     <header className="sticky top-0 z-40 bg-surface/80 backdrop-blur-xl border-b border-transparent">
-      <div className="flex justify-between items-center w-full px-8 py-6 max-w-screen-2xl mx-auto">
+      <div className="mx-auto flex w-full max-w-screen-2xl items-center justify-between px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6 xl:px-10">
         {/* Brand */}
-        <div className="flex items-center gap-8">
+        <div className="flex items-center gap-4 lg:gap-8">
           <Link to="/" className="font-serif italic text-2xl text-on-surface hover:text-primary transition-colors lg:hidden">
             MindFlow
           </Link>
-          <nav className="hidden md:flex gap-6">
+          <nav className="hidden md:flex gap-4 lg:gap-6">
             {navItems.map((item) => {
               const isActive = location.pathname === item.path || location.pathname.startsWith(`${item.path}/`);
               return (
@@ -42,7 +42,7 @@ export default function TopNav() {
         </div>
 
         {/* Right side */}
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-3 sm:gap-4 lg:gap-6">
           {/* Search (hidden on mobile) */}
           <div className="hidden sm:block relative">
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-sm">
@@ -51,7 +51,7 @@ export default function TopNav() {
             <input
               type="text"
               placeholder="Search insights..."
-              className="bg-surface-container-lowest border-none ring-1 ring-outline/10 rounded-lg pl-10 pr-4 py-2 text-sm w-64 focus:ring-primary/20 transition-all outline-none"
+              className="w-[clamp(11rem,23vw,16rem)] rounded-lg border-none bg-surface-container-lowest py-2 pl-10 pr-4 text-sm ring-1 ring-outline/10 transition-all outline-none focus:ring-primary/20"
             />
           </div>
 

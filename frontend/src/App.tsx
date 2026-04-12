@@ -11,7 +11,7 @@ import Now from './pages/Now';
 export default function App() {
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background overflow-x-hidden">
         {/* Desktop Sidebar */}
         <Sidebar />
 
@@ -21,7 +21,7 @@ export default function App() {
           <TopNav />
 
           {/* Page Content */}
-          <main className="max-w-screen-2xl mx-auto w-full px-8 py-12">
+          <main className="mx-auto w-full max-w-screen-2xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10 xl:px-10">
             <Routes>
               <Route path="/" element={<Navigate to="/daily-digest" replace />} />
               <Route path="/newsletter" element={<Navigate to="/daily-digest" replace />} />
