@@ -2,6 +2,24 @@
 
 > AI 驱动的个性化每日资讯简报平台
 
+## 当前项目状态（2026-04-12）
+
+### 已完成的 MVP 主链路
+- ✅ Settings 页支持 `loading / load_error / unconfigured / configured` 四态
+- ✅ AI 配置支持“先测试、再保存”，并实现 `api_key` 保留语义
+- ✅ Newsletter 支持按周查询 / 周切换 / 无简报日期灰显
+- ✅ 今日无简报时显示空状态，并可跳转最近一份简报
+- ✅ Main Channel 已接入“减少这类话题内容”负反馈 + Undo
+- ✅ `Read Source` 已接入非阻塞弱隐式信号上报
+- ✅ 前端 `fetchApi` 已兼容 `204 No Content`
+- ✅ Docker 部署下前端已通过 nginx 代理 `/api` 到后端，避免白屏和数据契约错读
+
+### 仍属于后续迭代的内容
+- ⏳ Exploration Zone / Surprise Box 反馈扩展
+- ⏳ 候选标签 schema 进一步收敛
+- ⏳ 批量抓取（Manual Crawl All）汇总反馈
+- ⏳ 更复杂的推荐抑制 / 质量反馈机制
+
 ## 功能特性
 
 ### 核心功能
@@ -57,6 +75,7 @@ docker compose up -d --build
 ```bash
 docker compose ps
 curl http://localhost:8000/health
+curl http://localhost:5173/api/interests/tags
 ```
 
 健康接口期望返回：
@@ -65,11 +84,23 @@ curl http://localhost:8000/health
 {"status":"healthy","database":"up"}
 ```
 
+前端经由 nginx 反向代理同源访问后端 API，因此 `http://localhost:5173/api/*` 也应返回 JSON，而不是 `index.html`。
+
 ### 4. 访问
 
 - 前端: http://localhost:5173
 - 后端 API: http://localhost:8000
 - API 文档: http://localhost:8000/docs
+
+### 4.1 Docker 部署为什么需要 `/api` 反向代理
+
+当前前端 API 客户端使用相对路径 `/api`。在 Docker 部署里，浏览器访问的是前端 nginx 容器暴露出来的 `5173` 端口，因此：
+
+- 浏览器发起的 `/api/...` 请求会先到前端 nginx；
+- nginx 需要把这些请求转发给后端容器 `backend:8000`；
+- 这样前后端保持同源访问，避免额外处理浏览器跨域与环境地址切换。
+
+如果没有这层代理，`/api/*` 很容易被 SPA fallback 误返回成 `index.html`，进而导致前端把 HTML 当 JSON 解析，引发运行时错误。
 
 ### 5. 数据持久化
 
@@ -196,7 +227,7 @@ ai-crawler/
 ```bash
 cd backend
 source .venv/bin/activate
-pytest tests/ -v
+pytest tests/test_digests.py tests/test_sources.py tests/test_config.py tests/test_full_flow.py -q
 ```
 
 ### 构建前端
@@ -204,6 +235,14 @@ pytest tests/ -v
 ```bash
 cd frontend
 npm run build
+```
+
+### Docker 联调快速检查
+
+```bash
+docker compose up -d --build
+curl http://127.0.0.1:8000/health
+curl http://127.0.0.1:5173/api/interests/tags
 ```
 
 ## 致谢

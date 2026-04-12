@@ -15,7 +15,7 @@ export default function TopNav() {
       <div className="flex justify-between items-center w-full px-8 py-6 max-w-screen-2xl mx-auto">
         {/* Brand */}
         <div className="flex items-center gap-8">
-          <Link to="/" className="font-serif italic text-2xl text-on-surface hover:text-primary transition-colors">
+          <Link to="/" className="font-serif italic text-2xl text-on-surface hover:text-primary transition-colors lg:hidden">
             MindFlow
           </Link>
           <nav className="hidden md:flex gap-6">
