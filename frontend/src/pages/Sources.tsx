@@ -9,6 +9,10 @@ export default function Sources() {
   const [showUrlModal, setShowUrlModal] = useState(false);
   const [editingSource, setEditingSource] = useState<NewsSource | null>(null);
   const [fetchingId, setFetchingId] = useState<number | null>(null);
+  const [quickAddUrl, setQuickAddUrl] = useState('');
+  const [quickAddLoading, setQuickAddLoading] = useState(false);
+  const [quickAddError, setQuickAddError] = useState('');
+  const [parsedAccountForModal, setParsedAccountForModal] = useState<ParsedAccount | null>(null);
 
   useEffect(() => {
     loadSources();
@@ -23,6 +27,32 @@ export default function Sources() {
       console.error('Failed to load sources:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleQuickAdd = async () => {
+    if (!quickAddUrl.trim()) {
+      setQuickAddError('请输入链接');
+      return;
+    }
+
+    if (!quickAddUrl.includes('mp.weixin.qq.com')) {
+      setQuickAddError('请输入有效的微信公众号文章链接');
+      return;
+    }
+
+    setQuickAddLoading(true);
+    setQuickAddError('');
+
+    try {
+      const account = await sourcesApi.parseUrl(quickAddUrl);
+      setParsedAccountForModal(account);
+      setShowUrlModal(true);
+      setQuickAddUrl('');
+    } catch (err) {
+      setQuickAddError(err instanceof Error ? err.message : '解析失败');
+    } finally {
+      setQuickAddLoading(false);
     }
   };
 
@@ -247,25 +277,29 @@ export default function Sources() {
         <div className="md:col-span-2">
           <div className="bg-white p-1 rounded-xl shadow-sm ring-1 ring-[#c0c8cb]/15 flex flex-col sm:flex-row gap-1">
             <input
-              type="text"
-              placeholder="https://source-url.com/feed"
+              type="url"
+              value={quickAddUrl}
+              onChange={(e) => {
+                setQuickAddUrl(e.target.value);
+                setQuickAddError('');
+              }}
+              onKeyDown={(e) => e.key === 'Enter' && handleQuickAdd()}
+              placeholder="粘贴微信公众号文章链接"
               className="flex-1 bg-transparent border-none focus:ring-0 px-4 py-3 text-sm placeholder:text-[#71787c]/50 text-[#1a1c1b]"
             />
             <div className="flex items-center gap-1">
-              <select className="bg-[#f4f4f2] border-none rounded-lg text-[10px] font-bold uppercase tracking-widest text-[#5e5e5e] focus:ring-0 cursor-pointer appearance-none px-4 py-2 pr-8 relative">
-                <option>Auto-Detect</option>
-                <option>RSS</option>
-                <option>URL</option>
-                <option>WeChat</option>
-              </select>
               <button
-                onClick={() => setShowUrlModal(true)}
-                className="bg-[#0d4656] text-white px-6 py-2.5 rounded-lg text-sm font-semibold hover:opacity-90 active:scale-[0.98] transition-all"
+                onClick={handleQuickAdd}
+                disabled={quickAddLoading}
+                className="bg-[#0d4656] text-white px-6 py-2.5 rounded-lg text-sm font-semibold hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50"
               >
-                Connect
+                {quickAddLoading ? '解析中...' : '添加'}
               </button>
             </div>
           </div>
+          {quickAddError && (
+            <p className="mt-2 text-sm text-red-600">{quickAddError}</p>
+          )}
           <div className="mt-4 flex flex-wrap gap-2">
             <span className="text-[10px] text-[#71787c] font-['Manrope'] uppercase tracking-wider self-center mr-2">Suggestions:</span>
             <button className="px-3 py-1 bg-[#f4f4f2] border border-[#c0c8cb]/10 rounded-full text-[10px] text-[#5e5e5e] hover:bg-[#e8e8e6] transition-colors">Aeon Magazine</button>
@@ -288,11 +322,16 @@ export default function Sources() {
 
       {showUrlModal && (
         <AddFromUrlModal
-          onClose={() => setShowUrlModal(false)}
+          onClose={() => {
+            setShowUrlModal(false);
+            setParsedAccountForModal(null);
+          }}
           onSuccess={() => {
             setShowUrlModal(false);
+            setParsedAccountForModal(null);
             loadSources();
           }}
+          initialAccount={parsedAccountForModal}
         />
       )}
     </div>
@@ -431,12 +470,13 @@ function SourceModal({ source, onClose, onSave }: SourceModalProps) {
 interface AddFromUrlModalProps {
   onClose: () => void;
   onSuccess: () => void;
+  initialAccount?: ParsedAccount | null;
 }
 
-function AddFromUrlModal({ onClose, onSuccess }: AddFromUrlModalProps) {
+function AddFromUrlModal({ onClose, onSuccess, initialAccount }: AddFromUrlModalProps) {
   const [url, setUrl] = useState('');
   const [parsing, setParsing] = useState(false);
-  const [parsedAccount, setParsedAccount] = useState<ParsedAccount | null>(null);
+  const [parsedAccount, setParsedAccount] = useState<ParsedAccount | null>(initialAccount || null);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -498,30 +538,32 @@ function AddFromUrlModal({ onClose, onSuccess }: AddFromUrlModalProps) {
         </div>
 
         <div className="p-4 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">微信公众号文章链接</label>
-            <div className="flex gap-2">
-              <input
-                type="url"
-                value={url}
-                onChange={(e) => {
-                  setUrl(e.target.value);
-                  setError('');
-                  setParsedAccount(null);
-                }}
-                placeholder="https://mp.weixin.qq.com/s/..."
-                className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0d4656]"
-              />
-              <button
-                onClick={handleParse}
-                disabled={parsing || !url.trim()}
-                className="px-4 py-2 bg-[#0d4656] text-white rounded-lg text-sm font-medium hover:bg-[#2c5e6e] disabled:opacity-50 transition-colors"
-              >
-                {parsing ? '解析中...' : '解析'}
-              </button>
+          {!initialAccount && !parsedAccount && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">微信公众号文章链接</label>
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  value={url}
+                  onChange={(e) => {
+                    setUrl(e.target.value);
+                    setError('');
+                    setParsedAccount(null);
+                  }}
+                  placeholder="https://mp.weixin.qq.com/s/..."
+                  className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0d4656]"
+                />
+                <button
+                  onClick={handleParse}
+                  disabled={parsing || !url.trim()}
+                  className="px-4 py-2 bg-[#0d4656] text-white rounded-lg text-sm font-medium hover:bg-[#2c5e6e] disabled:opacity-50 transition-colors"
+                >
+                  {parsing ? '解析中...' : '解析'}
+                </button>
+              </div>
+              <p className="mt-1 text-xs text-gray-500">粘贴任意微信公众号文章的链接，系统将自动识别所属公众号</p>
             </div>
-            <p className="mt-1 text-xs text-gray-500">粘贴任意微信公众号文章的链接，系统将自动识别所属公众号</p>
-          </div>
+          )}
 
           {error && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
@@ -529,47 +571,50 @@ function AddFromUrlModal({ onClose, onSuccess }: AddFromUrlModalProps) {
             </div>
           )}
 
-          {parsedAccount && (
-            <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-              <div className="flex items-center gap-3 mb-3">
-                {parsedAccount.avatar ? (
-                  <img
-                    src={parsedAccount.avatar}
-                    alt={parsedAccount.nickname}
-                    className="w-12 h-12 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center text-xl">
-                    📮
-                  </div>
-                )}
-                <div>
-                  <h4 className="font-semibold text-gray-900">{parsedAccount.nickname}</h4>
-                  {parsedAccount.is_verify === 2 && (
-                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
-                      已认证
-                    </span>
+          {(parsedAccount || initialAccount) && (() => {
+            const account = parsedAccount || initialAccount!;
+            return (
+              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-center gap-3 mb-3">
+                  {account.avatar ? (
+                    <img
+                      src={account.avatar}
+                      alt={account.nickname}
+                      className="w-12 h-12 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center text-xl">
+                      📮
+                    </div>
                   )}
+                  <div>
+                    <h4 className="font-semibold text-gray-900">{account.nickname}</h4>
+                    {account.is_verify === 2 && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
+                        已认证
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {account.alias && (
+                  <p className="text-sm text-gray-500 mb-2">微信号：{account.alias}</p>
+                )}
+
+                {account.verify_info && (
+                  <p className="text-sm text-gray-500 mb-2">主体：{account.verify_info}</p>
+                )}
+
+                {account.signature && (
+                  <p className="text-sm text-gray-400 line-clamp-2">{account.signature}</p>
+                )}
+
+                <div className="mt-3 pt-3 border-t border-green-200">
+                  <p className="text-xs text-gray-500 mb-1">Fake ID：{account.fakeid}</p>
                 </div>
               </div>
-
-              {parsedAccount.alias && (
-                <p className="text-sm text-gray-500 mb-2">微信号：{parsedAccount.alias}</p>
-              )}
-
-              {parsedAccount.verify_info && (
-                <p className="text-sm text-gray-500 mb-2">主体：{parsedAccount.verify_info}</p>
-              )}
-
-              {parsedAccount.signature && (
-                <p className="text-sm text-gray-400 line-clamp-2">{parsedAccount.signature}</p>
-              )}
-
-              <div className="mt-3 pt-3 border-t border-green-200">
-                <p className="text-xs text-gray-500 mb-1">Fake ID：{parsedAccount.fakeid}</p>
-              </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
 
         <div className="flex justify-end gap-2 p-4 border-t border-gray-100">

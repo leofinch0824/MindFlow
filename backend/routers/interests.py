@@ -27,6 +27,13 @@ from services.learning import get_content_zone, suggest_tag_candidates
 router = APIRouter(prefix="/api/interests", tags=["interests"])
 
 
+def _format_datetime(dt) -> Optional[str]:
+    """Convert datetime to ISO format string for Pydantic"""
+    if dt is None:
+        return None
+    return dt.isoformat()
+
+
 def _tag_to_response(tag_data: dict) -> UserInterestTagResponse:
     """Convert database tag dict to response model"""
     return UserInterestTagResponse(
@@ -39,8 +46,8 @@ def _tag_to_response(tag_data: dict) -> UserInterestTagResponse:
         hide_count=tag_data.get("hide_count", 0),
         total_time_spent=tag_data.get("total_time_spent", 0.0),
         click_count=tag_data.get("click_count", 0),
-        last_updated=tag_data.get("last_updated"),
-        created_at=tag_data.get("created_at"),
+        last_updated=_format_datetime(tag_data.get("last_updated")),
+        created_at=_format_datetime(tag_data.get("created_at")),
     )
 
 

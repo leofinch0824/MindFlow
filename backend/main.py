@@ -1,7 +1,12 @@
+from pathlib import Path
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+
+load_dotenv(Path(__file__).parent / ".env")
+
 from database import init_db, check_db_health
 from routers import sources, articles, config, digests, interests, behavior
 from services.scheduler import start_scheduler, stop_scheduler

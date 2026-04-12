@@ -155,6 +155,7 @@ export default function InterestSettings() {
           <div className="bg-surface-container-lowest border border-outline-variant/10 p-8 rounded-xl">
             <div className="flex flex-col sm:flex-row gap-4">
               <input
+                id="interest-input"
                 type="text"
                 value={newTag}
                 onChange={(e) => setNewTag(e.target.value)}
@@ -177,7 +178,10 @@ export default function InterestSettings() {
           <div className="bg-surface-container-lowest border border-outline-variant/10 p-8 rounded-xl">
             <div className="flex justify-between items-center mb-8">
               <h3 className="font-serif text-2xl">Active Interests</h3>
-              <button className="flex items-center gap-2 text-primary text-xs font-bold uppercase tracking-widest hover:underline">
+              <button
+                onClick={() => document.getElementById('interest-input')?.focus()}
+                className="flex items-center gap-2 text-primary text-xs font-bold uppercase tracking-widest hover:underline"
+              >
                 <span className="material-symbols-outlined text-sm">add_circle</span>
                 Add Interest
               </button>
@@ -272,7 +276,7 @@ export default function InterestSettings() {
                     <div className="flex flex-col">
                       <span className="font-bold text-sm">{candidate.tag}</span>
                       <span className="text-[10px] text-secondary">
-                        Matched via: {candidate.tag} ({candidate.count} mentions)
+                        出现在 {candidate.count} 篇文章中
                       </span>
                     </div>
                     <button

@@ -14,8 +14,10 @@ export default function Sidebar() {
     <aside className="hidden lg:flex flex-col h-screen w-64 border-r border-outline-variant/15 bg-surface-container-low py-8 px-4 fixed left-0 top-0 overflow-y-auto">
       {/* Logo */}
       <div className="mb-12 px-2">
-        <h1 className="font-serif text-xl text-on-surface">The Digital Atelier</h1>
-        <p className="text-[11px] font-sans uppercase tracking-widest text-secondary mt-1">Curated Daily Brief</p>
+        <Link to="/" className="block">
+          <h1 className="font-serif italic text-xl text-on-surface hover:text-primary transition-colors">MindFlow</h1>
+          <p className="text-[11px] font-sans uppercase tracking-widest text-secondary mt-1">Curated Daily Brief</p>
+        </Link>
       </div>
 
       {/* Navigation */}
