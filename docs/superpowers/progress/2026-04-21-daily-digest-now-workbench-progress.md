@@ -98,6 +98,15 @@
   - spec review ✅
   - code review ✅
 
+### Task 7 — Update README and run end-to-end verification
+- **Commit:** `a816a3a`
+- Updated:
+  - `README.md`
+- Result:
+  - README now documents the `Daily Digest + Now` dual-core model
+  - verification commands include `alembic upgrade head`, `Now` API checks, and current primary routes
+  - local smoke checks were re-run against the branch code
+
 ## Verification Snapshot
 
 ### Task 2 verification that passed
@@ -143,10 +152,47 @@ npm run build
 Result:
 - frontend production build ✅
 
+### Task 7 final verification that passed
+```bash
+docker start mindflow-postgres || true
+
+cd backend
+source .venv/bin/activate
+POSTGRES_PASSWORD=mindflow_dev alembic upgrade head
+POSTGRES_PASSWORD=mindflow_dev pytest tests/test_now_api.py tests/test_articles.py tests/test_digests.py tests/test_main.py tests/test_sources.py tests/test_config.py tests/test_full_flow.py -q
+
+cd ../frontend
+npm run build
+```
+
+Additional smoke checks that passed:
+```bash
+cd backend
+source .venv/bin/activate
+POSTGRES_PASSWORD=mindflow_dev uvicorn main:app --host 127.0.0.1 --port 8001
+
+cd frontend
+npm run dev -- --host 127.0.0.1 --port 4173
+
+curl http://127.0.0.1:8001/health
+curl \"http://127.0.0.1:8001/api/now?limit=5\"
+curl -I http://127.0.0.1:4173/daily-digest
+curl -I http://127.0.0.1:4173/now
+```
+
+Result:
+- backend migration verification ✅
+- backend focused suite: `42 passed` ✅
+- frontend build ✅
+- `/health` returned healthy ✅
+- `/api/now?limit=5` returned JSON ✅
+- `/daily-digest` and `/now` returned `HTTP/1.1 200 OK` from the frontend dev server ✅
+
 ## Remaining Work
 
 ### Next up
-1. **Task 7** — update README and run end-to-end verification
+- No planned tasks remain in this implementation plan.
+- If work resumes, the next lane should be manual UX validation / polish rather than missing feature completion.
 
 ## Important Implementation Notes
 
