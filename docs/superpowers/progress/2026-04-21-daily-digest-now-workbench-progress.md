@@ -65,6 +65,39 @@
   - spec review ✅
   - code review ✅
 
+### Task 5 — Turn Daily Digest cards into internal detail entry points
+- **Commit:** `b702470`
+- Updated:
+  - `frontend/src/pages/Newsletter.tsx`
+- Result:
+  - the hero now uses `Daily Digest`
+  - main digest cards now use `Open Detail`
+  - digest click behavior navigates to `/now/:anchorId?from=digest&date=...`
+  - digest-only negative feedback remains on the digest page
+  - direct source reading is no longer the primary digest exit
+- Task 5 review status:
+  - spec review ✅
+  - code review ✅
+
+### Task 6 — Replace the Now placeholder with the real workbench
+- **Commit:** `b702470`
+- Added:
+  - `frontend/src/components/now/NowContextRail.tsx`
+  - `frontend/src/components/now/NowQueueList.tsx`
+  - `frontend/src/components/now/NowDetailPane.tsx`
+- Updated:
+  - `frontend/src/pages/Now.tsx`
+- Result:
+  - queue, context rail, and detail reader are now live
+  - `Now` fetches queue + detail from `nowApi`
+  - read / processed actions are wired
+  - queue selection is guarded during in-flight state updates
+  - stale detail responses are ignored so the route target stays authoritative
+  - `Read Source` only renders when a real source URL exists
+- Task 6 review status:
+  - spec review ✅
+  - code review ✅
+
 ## Verification Snapshot
 
 ### Task 2 verification that passed
@@ -101,12 +134,19 @@ npm run build
 Result:
 - frontend production build ✅
 
+### Task 5 / Task 6 verification that passed
+```bash
+cd frontend
+npm run build
+```
+
+Result:
+- frontend production build ✅
+
 ## Remaining Work
 
 ### Next up
-1. **Task 5** — change Digest cards to internal detail entry
-2. **Task 6** — build the real `Now` three-column workbench
-3. **Task 7** — update README and run end-to-end verification
+1. **Task 7** — update README and run end-to-end verification
 
 ## Important Implementation Notes
 
