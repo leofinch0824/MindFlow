@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import dayjs from 'dayjs';
+import { useNavigate } from 'react-router-dom';
 import {
   behaviorApi,
   digestsApi,
@@ -201,7 +202,7 @@ function MainChannelArticle({
   dismissing,
   feedbackDisabled,
   onFeedback,
-  onReadSource,
+  onOpenDetail,
 }: {
   insight: InsightRef;
   badge: string;
@@ -209,7 +210,7 @@ function MainChannelArticle({
   dismissing: boolean;
   feedbackDisabled: boolean;
   onFeedback: (insight: InsightRef) => void;
-  onReadSource: (insight: InsightRef) => void;
+  onOpenDetail: (insight: InsightRef) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -264,6 +265,13 @@ function MainChannelArticle({
           </div>
           <div className="mt-6 flex flex-col gap-4">
             <button
+              onClick={() => onOpenDetail(insight)}
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-[#0d4656] px-4 py-3 text-[11px] font-bold uppercase tracking-widest text-white transition-colors hover:bg-[#0b3f4d]"
+            >
+              <span className="material-symbols-outlined text-base">arrow_forward</span>
+              Open Detail
+            </button>
+            <button
               onClick={() => onFeedback(insight)}
               disabled={feedbackDisabled}
               className="inline-flex items-center justify-center gap-2 rounded-full border border-[#c0c8cb]/20 px-4 py-2 text-[11px] font-bold uppercase tracking-widest text-[#40484b] transition-colors hover:border-[#0d4656]/30 hover:text-[#0d4656] disabled:cursor-not-allowed disabled:opacity-40"
@@ -271,16 +279,9 @@ function MainChannelArticle({
               <span className="material-symbols-outlined text-base">thumb_down</span>
               减少这类话题内容
             </button>
-            <a
-              className="inline-flex items-center gap-1 border-b border-[#5e5e5e]/20 pb-1 text-[10px] font-bold uppercase tracking-widest text-[#5e5e5e] transition-colors hover:border-[#0d4656]/40 hover:text-[#0d4656]"
-              href={insight.source_article_link}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => onReadSource(insight)}
-            >
-              Read Source
-              <span className="material-symbols-outlined text-xs">arrow_outward</span>
-            </a>
+            <p className="text-[10px] uppercase tracking-[0.22em] text-[#5e5e5e]">
+              Read Source continues inside the detail view
+            </p>
           </div>
         </div>
       </div>
@@ -352,6 +353,7 @@ function Snackbar({
 }
 
 export default function Newsletter() {
+  const navigate = useNavigate();
   const today = useMemo(() => dayjs().format('YYYY-MM-DD'), []);
   const currentWeekStart = useMemo(() => getWeekStart(today), [today]);
 
@@ -522,7 +524,7 @@ export default function Newsletter() {
     }, 220);
   }
 
-  function handleReadSource(insight: InsightRef) {
+  function handleOpenDetail(insight: InsightRef) {
     if (!digest) {
       return;
     }
@@ -537,6 +539,8 @@ export default function Newsletter() {
     }).catch(() => {
       // non-blocking best effort
     });
+
+    navigate(`/now/${insight.anchor_id}?from=digest&date=${digest.date}`);
   }
 
   const availableDates = useMemo(() => new Set(weekDigests.map((item) => item.date)), [weekDigests]);
@@ -594,11 +598,11 @@ export default function Newsletter() {
             <div>
               <p className="mb-4 font-label text-xs uppercase tracking-[0.2em] text-[#5e5e5e]">{formattedDate}</p>
               <h2 className="mb-6 font-headline text-6xl leading-none tracking-tight md:text-8xl">
-                The Morning <br />
-                <span className="italic text-[#0d4656]">Briefing</span>
+                Daily <br />
+                <span className="italic text-[#0d4656]">Digest</span>
               </h2>
               <p className="max-w-xl text-lg leading-relaxed text-[#40484b]">
-                {digest?.overview || 'Your digital atelier has synthesized sources into core insights.'}
+                {digest?.overview || 'Your private information atelier has distilled the latest sources into today’s core signals.'}
               </p>
               {digest && (
                 <div className="mt-4 flex items-center gap-4 text-xs text-[#5e5e5e]">
@@ -667,7 +671,7 @@ export default function Newsletter() {
                       dismissing={dismissingAnchorId === insight.anchor_id}
                       feedbackDisabled={Boolean(pendingFeedback) || dismissingAnchorId !== null}
                       onFeedback={handleNegativeFeedback}
-                      onReadSource={handleReadSource}
+                      onOpenDetail={handleOpenDetail}
                     />
                   ))}
                 </div>
