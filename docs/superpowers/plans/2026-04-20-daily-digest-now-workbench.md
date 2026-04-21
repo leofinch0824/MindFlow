@@ -1,6 +1,8 @@
 # MindFlow Daily Digest + Now Workbench Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
+>
+> **Execution status (2026-04-21):** ✅ Verified complete on `feat/now-workbench`. See `docs/superpowers/progress/2026-04-21-daily-digest-now-workbench-progress.md` for verification details and commit-level progress.
 
 **Goal:** 把当前 `digest-first` MVP 演进成以 `Daily Digest + Now` 为双核心入口的私有化信息工作台，并让主链路稳定落到 `Daily Digest -> Detail -> Read Source`。
 
@@ -53,7 +55,7 @@
 **Files:**
 - Create: `backend/tests/test_now_api.py`
 
-- [ ] **Step 1: 写出后端契约失败测试**
+- [x] **Step 1: 写出后端契约失败测试**
 
 ```python
 import pytest
@@ -168,7 +170,7 @@ def test_patch_now_state_marks_read_and_processed(client):
     assert data["processed_at"] is not None
 ```
 
-- [ ] **Step 2: 跑测试确认当前仓库还不支持 `Now`**
+- [x] **Step 2: 跑测试确认当前仓库还不支持 `Now`**
 
 Run:
 ```bash
@@ -179,7 +181,7 @@ pytest tests/test_now_api.py -q
 
 Expected: FAIL，至少出现一个 `404 Not Found` 或 `ModuleNotFoundError: No module named 'routers.now'`，证明契约尚未落地。
 
-- [ ] **Step 3: 提交红灯测试**
+- [x] **Step 3: 提交红灯测试**
 
 ```bash
 git add backend/tests/test_now_api.py
@@ -213,7 +215,7 @@ EOF
 - Create: `backend/routers/now.py`
 - Create: `backend/alembic/versions/20260420_01_add_article_workbench_state.py`
 
-- [ ] **Step 1: 先写 Alembic 迁移，把工作台状态挂到 `articles`**
+- [x] **Step 1: 先写 Alembic 迁移，把工作台状态挂到 `articles`**
 
 ```python
 """add article workbench state"""
@@ -240,7 +242,7 @@ def downgrade() -> None:
     op.drop_column("articles", "read_at")
 ```
 
-- [ ] **Step 2: 更新 ORM 和 Pydantic 契约**
+- [x] **Step 2: 更新 ORM 和 Pydantic 契约**
 
 ```python
 # backend/models.py
@@ -318,7 +320,7 @@ class NowStateResponse(BaseModel):
     processed_at: Optional[str] = None
 ```
 
-- [ ] **Step 3: 在数据库层加 join 查询和状态更新 helper**
+- [x] **Step 3: 在数据库层加 join 查询和状态更新 helper**
 
 ```python
 # backend/database.py
@@ -424,7 +426,7 @@ async def update_article_workbench_state_by_anchor(
         }
 ```
 
-- [ ] **Step 4: 用独立 service 固化排序，不把公式散落在 router**
+- [x] **Step 4: 用独立 service 固化排序，不把公式散落在 router**
 
 ```python
 # backend/services/now.py
@@ -565,7 +567,7 @@ async def update_now_state_payload(anchor_id: int, *, mark_read: bool, mark_proc
     )
 ```
 
-- [ ] **Step 5: 新建 router，并接入 `main.py`**
+- [x] **Step 5: 新建 router，并接入 `main.py`**
 
 ```python
 # backend/routers/now.py
@@ -614,7 +616,7 @@ from routers import sources, articles, config, digests, interests, behavior, now
 app.include_router(now.router)
 ```
 
-- [ ] **Step 6: 跑迁移并让红灯测试转绿**
+- [x] **Step 6: 跑迁移并让红灯测试转绿**
 
 Run:
 ```bash
@@ -626,7 +628,7 @@ pytest tests/test_now_api.py tests/test_articles.py tests/test_digests.py -q
 
 Expected: PASS；`tests/test_now_api.py` 全绿，且既有文章/简报接口测试没有被 `Article` 字段扩展破坏。
 
-- [ ] **Step 7: 提交后端实现**
+- [x] **Step 7: 提交后端实现**
 
 ```bash
 git add backend/main.py backend/models.py backend/schemas.py backend/database.py backend/services/now.py backend/routers/now.py backend/alembic/versions/20260420_01_add_article_workbench_state.py
@@ -661,7 +663,7 @@ EOF
 - Modify: `frontend/src/components/MobileNav.tsx`
 - Create: `frontend/src/pages/Now.tsx`
 
-- [ ] **Step 1: 更新主路由，保留旧 `/newsletter` 兼容跳转**
+- [x] **Step 1: 更新主路由，保留旧 `/newsletter` 兼容跳转**
 
 ```tsx
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
@@ -701,7 +703,7 @@ export default function App() {
 }
 ```
 
-- [ ] **Step 2: 把导航文案改成产品定义里的双核心**
+- [x] **Step 2: 把导航文案改成产品定义里的双核心**
 
 ```tsx
 // frontend/src/components/Sidebar.tsx
@@ -736,7 +738,7 @@ const navItems = [
 ];
 ```
 
-- [ ] **Step 3: 先放一个最小 `Now` 页面占位，保证新路由不白屏**
+- [x] **Step 3: 先放一个最小 `Now` 页面占位，保证新路由不白屏**
 
 ```tsx
 // frontend/src/pages/Now.tsx
@@ -753,7 +755,7 @@ export default function Now() {
 }
 ```
 
-- [ ] **Step 4: 编译确认新路由壳层没破坏现有页面**
+- [x] **Step 4: 编译确认新路由壳层没破坏现有页面**
 
 Run:
 ```bash
@@ -763,7 +765,7 @@ npm run build
 
 Expected: PASS，产出新的 `dist/`，且没有 React Router / TypeScript 类型错误。
 
-- [ ] **Step 5: 做一次浏览器 smoke，确认入口已完成切换**
+- [x] **Step 5: 做一次浏览器 smoke，确认入口已完成切换**
 
 Run:
 ```bash
@@ -777,7 +779,7 @@ Manual check:
 3. 访问 `http://localhost:5173/newsletter` 时，应自动跳转到 `/daily-digest` 而不是 404。
 4. 点击 `Now` 不应白屏。
 
-- [ ] **Step 6: 提交路由壳层改动**
+- [x] **Step 6: 提交路由壳层改动**
 
 ```bash
 git add frontend/src/App.tsx frontend/src/components/Sidebar.tsx frontend/src/components/TopNav.tsx frontend/src/components/MobileNav.tsx frontend/src/pages/Now.tsx
@@ -806,7 +808,7 @@ EOF
 **Files:**
 - Modify: `frontend/src/api/newsletter.ts`
 
-- [ ] **Step 1: 给 `newsletter.ts` 增加 `Now` 类型**
+- [x] **Step 1: 给 `newsletter.ts` 增加 `Now` 类型**
 
 ```ts
 export interface NowItem {
@@ -865,7 +867,7 @@ export interface NowStateResponse {
 }
 ```
 
-- [ ] **Step 2: 增加 `nowApi`，不要在页面里手写 `fetch`**
+- [x] **Step 2: 增加 `nowApi`，不要在页面里手写 `fetch`**
 
 ```ts
 export const nowApi = {
@@ -883,7 +885,7 @@ export const nowApi = {
 };
 ```
 
-- [ ] **Step 3: 编译验证 DTO 改动没有影响旧页面**
+- [x] **Step 3: 编译验证 DTO 改动没有影响旧页面**
 
 Run:
 ```bash
@@ -893,7 +895,7 @@ npm run build
 
 Expected: PASS，`digestsApi / interestsApi / behaviorApi` 仍然可用，新增 `nowApi` 没有引入重复类型名冲突。
 
-- [ ] **Step 4: 提交 API 客户端扩展**
+- [x] **Step 4: 提交 API 客户端扩展**
 
 ```bash
 git add frontend/src/api/newsletter.ts
@@ -921,7 +923,7 @@ EOF
 **Files:**
 - Modify: `frontend/src/pages/Newsletter.tsx`
 
-- [ ] **Step 1: 让 Digest 卡片跳内部 Detail，而不是把原文当主出口**
+- [x] **Step 1: 让 Digest 卡片跳内部 Detail，而不是把原文当主出口**
 
 ```tsx
 import { useNavigate } from 'react-router-dom';
@@ -988,7 +990,7 @@ function MainChannelArticle({
 }
 ```
 
-- [ ] **Step 2: 在页面级用 `navigate()` 把用户送进 `Now` 详情上下文**
+- [x] **Step 2: 在页面级用 `navigate()` 把用户送进 `Now` 详情上下文**
 
 ```tsx
 const navigate = useNavigate();
@@ -1024,7 +1026,7 @@ function handleOpenDetail(insight: InsightRef) {
 />
 ```
 
-- [ ] **Step 3: 同步把刊物标题文案对齐到 `Daily Digest`**
+- [x] **Step 3: 同步把刊物标题文案对齐到 `Daily Digest`**
 
 ```tsx
 <h2 className="mb-6 font-headline text-6xl leading-none tracking-tight md:text-8xl">
@@ -1036,7 +1038,7 @@ function handleOpenDetail(insight: InsightRef) {
 </p>
 ```
 
-- [ ] **Step 4: 编译并做主链路 smoke，验证 `Digest -> Detail` 已成立**
+- [x] **Step 4: 编译并做主链路 smoke，验证 `Digest -> Detail` 已成立**
 
 Run:
 ```bash
@@ -1050,7 +1052,7 @@ Manual check:
 3. 点击 `Open Detail` 后，路由应跳到 `/now/<anchorId>`。
 4. `减少这类话题内容` 仍只存在于 Digest 页面。
 
-- [ ] **Step 5: 提交 Digest 链路调整**
+- [x] **Step 5: 提交 Digest 链路调整**
 
 ```bash
 git add frontend/src/pages/Newsletter.tsx
@@ -1082,7 +1084,7 @@ EOF
 - Create: `frontend/src/components/now/NowQueueList.tsx`
 - Create: `frontend/src/components/now/NowDetailPane.tsx`
 
-- [ ] **Step 1: 先把 `Now` 页升级成真实容器，接 `nowApi` 与路由参数**
+- [x] **Step 1: 先把 `Now` 页升级成真实容器，接 `nowApi` 与路由参数**
 
 ```tsx
 // frontend/src/pages/Now.tsx
@@ -1217,7 +1219,7 @@ export default function Now() {
 }
 ```
 
-- [ ] **Step 2: 左栏只放“上下文感”，不堆历史归档**
+- [x] **Step 2: 左栏只放“上下文感”，不堆历史归档**
 
 ```tsx
 // frontend/src/components/now/NowContextRail.tsx
@@ -1269,7 +1271,7 @@ export default function NowContextRail({
 }
 ```
 
-- [ ] **Step 3: 中栏队列支持收起/展开，并明确优先级原因**
+- [x] **Step 3: 中栏队列支持收起/展开，并明确优先级原因**
 
 ```tsx
 // frontend/src/components/now/NowQueueList.tsx
@@ -1342,7 +1344,7 @@ export default function NowQueueList({
 }
 ```
 
-- [ ] **Step 4: 右栏 Detail 必须把 AI 摘要和正文放在同一页，并把 Read Source 降级到次动作**
+- [x] **Step 4: 右栏 Detail 必须把 AI 摘要和正文放在同一页，并把 Read Source 降级到次动作**
 
 ```tsx
 // frontend/src/components/now/NowDetailPane.tsx
@@ -1437,7 +1439,7 @@ export default function NowDetailPane({
 }
 ```
 
-- [ ] **Step 5: 编译确认新增组件和 `react-markdown` 用法工作正常**
+- [x] **Step 5: 编译确认新增组件和 `react-markdown` 用法工作正常**
 
 Run:
 ```bash
@@ -1447,7 +1449,7 @@ npm run build
 
 Expected: PASS；`Now.tsx`、三个新组件和 `newsletter.ts` 的新类型都能通过 TypeScript 编译。
 
-- [ ] **Step 6: 浏览器 smoke，检查 `Now` 是否满足 MVP 定义**
+- [x] **Step 6: 浏览器 smoke，检查 `Now` 是否满足 MVP 定义**
 
 Run:
 ```bash
@@ -1463,7 +1465,7 @@ Manual check:
 5. 详情页里只能看到 `Mark Read / Mark Processed / Read Source`，不能出现 Digest 的兴趣纠偏按钮。
 6. 点击 `Mark Processed` 后，当前项应从队列消失并自动切到下一条。
 
-- [ ] **Step 7: 提交 `Now` 工作台实现**
+- [x] **Step 7: 提交 `Now` 工作台实现**
 
 ```bash
 git add frontend/src/pages/Now.tsx frontend/src/components/now/NowContextRail.tsx frontend/src/components/now/NowQueueList.tsx frontend/src/components/now/NowDetailPane.tsx
@@ -1491,7 +1493,7 @@ EOF
 **Files:**
 - Modify: `README.md`
 
-- [ ] **Step 1: 更新 README 的产品定位、主路径和验证命令**
+- [x] **Step 1: 更新 README 的产品定位、主路径和验证命令**
 
 ````md
 ## 当前项目状态（2026-04-20）
@@ -1515,7 +1517,7 @@ npm run build
 ```
 ````
 
-- [ ] **Step 2: 跑一次完整验证，不要只测新增页面**
+- [x] **Step 2: 跑一次完整验证，不要只测新增页面**
 
 Run:
 ```bash
@@ -1529,7 +1531,7 @@ npm run build
 
 Expected: PASS；既有 Sources / Settings / Interests 不被新路由和新 DTO 影响。
 
-- [ ] **Step 3: 做最终人工验收，覆盖文档 spec 的关键条目**
+- [x] **Step 3: 做最终人工验收，覆盖文档 spec 的关键条目**
 
 Manual check:
 1. `/daily-digest` 仍保持刊物感与显式兴趣纠偏。
@@ -1540,7 +1542,7 @@ Manual check:
 6. `Mark Read / Mark Processed` 会影响队列展示。
 7. `Sources / Interests / Settings` 仍可访问，且导航语义统一为信息工作台控制面板。
 
-- [ ] **Step 4: 提交文档与验收结果**
+- [x] **Step 4: 提交文档与验收结果**
 
 ```bash
 git add README.md
