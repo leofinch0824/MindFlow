@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import patch
 from fastapi.testclient import TestClient
+from datetime import datetime
 
 
 class TestArticlesAPI:
@@ -70,6 +71,31 @@ class TestArticlesAPI:
             data = response.json()
             assert len(data["items"]) == 2
             assert data["items"][0]["source_name"] == "测试源1"
+
+    def test_list_articles_serializes_datetime_fields(self, client, mock_sources):
+        """Test listing articles when database rows contain datetime objects."""
+        with patch("routers.articles.get_articles") as mock_get, \
+             patch("routers.articles.get_all_sources") as mock_sources_get:
+            mock_get.return_value = [
+                {
+                    "id": 3,
+                    "source_id": 1,
+                    "external_id": "feed-001",
+                    "title": "RSS 文章",
+                    "link": "https://example.com/rss-article",
+                    "content": "正文内容",
+                    "summary": "",
+                    "author": "Feed Source",
+                    "published_at": datetime(2026, 4, 21, 12, 0, 0),
+                    "fetched_at": datetime(2026, 4, 21, 12, 5, 0),
+                }
+            ]
+            mock_sources_get.return_value = mock_sources
+            response = client.get("/api/articles")
+            assert response.status_code == 200
+            data = response.json()
+            assert data["items"][0]["published_at"] == "2026-04-21T12:00:00"
+            assert data["items"][0]["fetched_at"] == "2026-04-21T12:05:00"
 
     def test_list_articles_filter_by_source(self, client, mock_articles, mock_sources):
         """Test filtering articles by source_id"""

@@ -7,10 +7,22 @@ import json
 router = APIRouter(prefix="/api/articles", tags=["文章管理"])
 
 
+def _format_datetime(value):
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return str(value)
+
+
 async def enrich_article_with_source(article: dict) -> dict:
     """Add source name to article"""
     sources = await get_all_sources()
     source_map = {s["id"]: s["name"] for s in sources}
+    article["published_at"] = _format_datetime(article.get("published_at"))
+    article["fetched_at"] = _format_datetime(article.get("fetched_at"))
     article["source_name"] = source_map.get(article["source_id"], "未知来源")
     return article
 

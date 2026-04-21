@@ -10,7 +10,7 @@ class NewsSource(Base):
     __tablename__ = "news_sources"
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String, nullable=False)
-    source_type = Column(String, default="custom")
+    source_type = Column(String, default="native_rss")
     api_base_url = Column(String, nullable=False)
     auth_key = Column(String, default="")
     config = Column(JSON, default=dict)

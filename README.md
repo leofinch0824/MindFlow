@@ -36,9 +36,9 @@
 - 🔄 **探索机制** - 主航道 60% + 探索区 30% + 惊喜箱 10%，避免信息茧房
 
 ### 信息源
-- 📱 **微信公众号** - 通过 MPText API 抓取
-- 📝 **知乎** - 抓取知乎文章和回答 (开发中)
-- 📡 **RSS 订阅** - 支持标准 RSS/Atom 订阅源 (开发中)
+- 📡 **原生 RSS / Atom / JSON Feed** - 统一按 feed URL 接入
+- 🔁 **RSSHub 路由源** - 以完整 RSSHub route URL 作为接入源
+- 🧾 **we-mp-rss 输出源** - 以本地或内网部署生成的 `/feed/...` URL 接入
 
 ### 技术亮点
 - **每日简报自动生成** - 定时抓取 + AI 锚点提取 + 简报合成
@@ -71,10 +71,8 @@
 cat > .env <<'EOF'
 POSTGRES_PASSWORD=change_me
 SILICONFLOW_API_KEY=
-MPTEXT_API_KEY=
 AI_BASE_URL=https://api.siliconflow.cn/v1
 AI_MODEL=Qwen/Qwen2.5-7B-Instruct
-MPTEXT_BASE_URL=https://down.mptext.top
 EOF
 ```
 
@@ -170,18 +168,13 @@ npm run dev
 | 硅基流动 | https://api.siliconflow.cn/v1 | Qwen/Qwen2.5-7B-Instruct |
 | MiniMax | https://api.minimax.chat/v1 | MiniMax-Text-01 |
 
-### 微信公众号配置
-
-1. 从 https://down.mptext.top/ 获取 API Key
-2. 在「设置 → AI 配置」填入 `MPTEXT_API_KEY`
-
 ### 信息源管理
 
 1. 进入「新闻源」页面
 2. 点击「添加新闻源」
-3. 选择类型（微信公众号）
-4. 填写配置信息并保存
-5. 系统将自动定时抓取最新文章
+3. 选择类型（`Native RSS` / `RSSHub` / `We-MP-RSS`）
+4. 填写完整 feed URL 并保存
+5. 系统将统一拉取 feed 中的文章并入库
 
 ## 项目结构
 

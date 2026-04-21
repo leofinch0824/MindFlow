@@ -58,16 +58,6 @@ export interface NewsSource {
   article_count: number;
 }
 
-export interface ParsedAccount {
-  fakeid: string;
-  nickname: string;
-  alias: string;
-  is_verify: number;
-  verify_info: string;
-  signature: string;
-  avatar: string;
-}
-
 export interface AIConfig {
   provider: string;
   base_url: string;
@@ -336,12 +326,6 @@ export const sourcesApi = {
   fetch: (id: number) =>
     fetchApi<{ success: boolean; message: string; articles_added: number }>(`/sources/${id}/fetch`, {
       method: 'POST',
-    }),
-
-  parseUrl: (url: string) =>
-    fetchApi<ParsedAccount>('/sources/parse-url', {
-      method: 'POST',
-      body: JSON.stringify({ url }),
     }),
 };
 

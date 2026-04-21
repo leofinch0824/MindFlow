@@ -1,30 +1,31 @@
-import httpx
+import html
 import json
 import re
-import os
-import time
-import inspect
-from datetime import datetime
-from pathlib import Path
-from typing import Optional, Dict, Any, List, Tuple
-from dotenv import load_dotenv
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
+from typing import Any, Dict, List, Optional, Tuple
+from urllib.parse import urljoin
+import xml.etree.ElementTree as ET
+
+import httpx
+
 from database import (
-    get_source_by_id, create_article, get_article_by_external_id,
-    update_source_fetch_time, add_fetch_log
+    add_fetch_log,
+    create_article,
+    get_article_by_external_id,
+    get_source_by_id,
+    update_source_fetch_time,
 )
 
-# Load environment variables from .env file
-_project_root = Path(__file__).parent.parent.parent
-load_dotenv(_project_root / ".env")
-
-BASE_URL = os.environ.get("MPTEXT_BASE_URL", "https://down.mptext.top")
 DEFAULT_TIMEOUT = 30
 MAX_RETRIES = 3
-RETRY_DELAY = 1
+USER_AGENT = "mindflow/1.0 (+https://github.com)"
+SUPPORTED_SOURCE_TYPES = {"native_rss", "rsshub", "we_mp_rss"}
 
 
-class MPTextCrawlerError(Exception):
-    """MPText crawler exception with error code and suggestion"""
+class FeedCrawlerError(Exception):
+    """Feed crawler exception with an end-user-safe message."""
+
     def __init__(self, code: str, message: str, suggestion: str = ""):
         self.code = code
         self.message = message
@@ -32,426 +33,400 @@ class MPTextCrawlerError(Exception):
         super().__init__(f"[{code}] {message}")
 
 
-def get_api_key() -> str:
-    """Get MPTEXT_API_KEY from environment"""
-    return os.environ.get("MPTEXT_API_KEY", "")
-
-
-def normalize_format(value: str) -> str:
-    """Normalize format parameter - matches mptext-crawler logic"""
-    f = value.lower()
-    if f in {"md", "markdown"}:
-        return "markdown"
-    if f in {"txt", "text"}:
-        return "text"
-    if f in {"htm", "html"}:
-        return "html"
-    if f == "json":
-        return "json"
-    return "markdown"  # default
-
-
-def http_get_with_retry(path: str, params: Dict[str, str], auth_key: str = "") -> str:
-    """Make HTTP GET request with retry logic - matches mptext-crawler behavior"""
-    query = "&".join([f"{k}={v}" for k, v in params.items()])
-    url = f"{BASE_URL}{path}?{query}" if query else f"{BASE_URL}{path}"
-
-    headers = {
-        "User-Agent": "ai-crawler/1.0 (+python)",
-        "Accept": "*/*"
-    }
-    if auth_key:
-        headers["X-Auth-Key"] = auth_key
-
-    last_error = None
-    for attempt in range(MAX_RETRIES):
-        try:
-            # Use a transport that bypasses system proxy
-            transport = httpx.HTTPTransport(retries=0)
-            with httpx.Client(timeout=DEFAULT_TIMEOUT, transport=transport) as client:
-                resp = client.get(url, headers=headers)
-                if resp.status_code == 429 and attempt < MAX_RETRIES - 1:
-                    time.sleep(RETRY_DELAY)
-                    continue
-                if resp.status_code >= 500 and attempt < MAX_RETRIES - 1:
-                    time.sleep(RETRY_DELAY)
-                    continue
-                resp.raise_for_status()
-                return resp.text
-        except httpx.HTTPError as e:
-            last_error = e
-            if attempt < MAX_RETRIES - 1:
-                time.sleep(RETRY_DELAY)
-                continue
-
-    raise MPTextCrawlerError(
-        code="NETWORK_ERROR",
-        message=str(last_error),
-        suggestion="网络连接失败，请检查代理/网络连通性后重试"
-    )
-
-
-def validate_response(response_text: str, mode: str = "strict") -> dict:
-    """
-    Validate API response - matches mptext-crawler validation logic
-    mode: 'strict' - requires valid JSON with base_resp.ret=0
-           'allow_content' - returns content even if ret != 0 (for download)
-    """
-    try:
-        data = json.loads(response_text)
-    except json.JSONDecodeError:
-        if mode == "allow_content":
-            return {"content": response_text}
-        raise MPTextCrawlerError(
-            code="INVALID_JSON",
-            message="接口响应不是合法 JSON",
-            suggestion="请稍后重试或检查接口可用性"
-        )
-
-    base_resp = data.get("base_resp", {})
-    ret = base_resp.get("ret")
-    err_msg = str(base_resp.get("err_msg", ""))
-
-    if ret is not None and str(ret) != "0":
-        suggestion = "请检查参数或稍后重试"
-        lower_msg = err_msg.lower()
-        if "认证" in err_msg or "auth" in lower_msg:
-            suggestion = "请检查 MPTEXT_API_KEY 是否正确"
-        elif "429" in err_msg or "频率" in err_msg or "too many" in lower_msg:
-            suggestion = "触发限流，请降低频率并在 5-30 秒后重试"
-
-        if mode == "strict":
-            raise MPTextCrawlerError(
-                code=str(ret),
-                message=err_msg or "接口返回失败",
-                suggestion=suggestion
-            )
-
-    return data
-
-
-def parse_json_if_possible(text: str) -> Optional[dict]:
-    """Parse JSON if possible, return None if fails"""
-    try:
-        data = json.loads(text)
-        if isinstance(data, dict):
-            return data
-    except Exception:
-        return None
-    return None
-
-
 async def _maybe_await(value: Any) -> Any:
-    """Resolve coroutine/AsyncMock values while leaving plain results untouched."""
-    if inspect.isawaitable(value):
+    if hasattr(value, "__await__"):
         return await value
     return value
 
 
-# ============ MPText API Functions ============
-
-async def search_account(keyword: str, begin: int = 0, size: int = 5) -> List[Dict]:
-    """
-    Search for WeChat official account by keyword
-    Endpoint: GET /api/public/v1/account
-    Returns: list of accounts with fakeid, nickname, alias, etc.
-    """
-    api_key = get_api_key()
-    if not api_key:
-        raise MPTextCrawlerError(
-            code="MISSING_API_KEY",
-            message="MPTEXT_API_KEY not found",
-            suggestion="请在 .env 配置 MPTEXT_API_KEY=YOUR_MPTEXT_API_KEY"
-        )
-
-    if size > 20:
-        size = 20
-
-    response = http_get_with_retry(
-        "/api/public/v1/account",
-        {"keyword": keyword, "begin": str(begin), "size": str(size)},
-        api_key
-    )
-    result = validate_response(response, mode="strict")
-    return result.get("list", [])
+def _strip_namespace(tag: str) -> str:
+    return tag.rsplit("}", 1)[-1] if "}" in tag else tag
 
 
-async def search_account_by_url(url: str) -> List[Dict]:
-    """
-    Search account by article URL (with fallback to download)
-    Endpoint: GET /api/public/v1/accountbyurl
-    Falls back to: GET /api/public/v1/download?format=json
-    Returns: list of accounts
-    """
-    api_key = get_api_key()
-    if not api_key:
-        raise MPTextCrawlerError(
-            code="MISSING_API_KEY",
-            message="MPTEXT_API_KEY not found",
-            suggestion="请在 .env 配置 MPTEXT_API_KEY=YOUR_MPTEXT_API_KEY"
-        )
-
-    # Try accountbyurl first
-    try:
-        response = http_get_with_retry(
-            "/api/public/v1/accountbyurl",
-            {"url": url},
-            api_key
-        )
-        result = validate_response(response, mode="strict")
-        accounts = result.get("list", [])
-        if accounts:
-            return accounts
-    except Exception:
-        pass
-
-    # Fallback: use download --format json to extract account info
-    try:
-        response = http_get_with_retry(
-            "/api/public/v1/download",
-            {"url": url, "format": "json"},
-            ""  # download doesn't require auth
-        )
-        data = validate_response(response, mode="allow_content")
-
-        # Extract account info from JSON download response
-        if isinstance(data, dict):
-            # Try fakeid first, then bizuin as fallback
-            fakeid = data.get("fakeid") or data.get("bizuin") or ""
-            nick_name = data.get("nick_name", "")
-
-            if fakeid or nick_name:
-                return [{
-                    "fakeid": fakeid,
-                    "nickname": nick_name,
-                    "alias": data.get("alias", ""),
-                    "verify_status": data.get("verify_status", 0),
-                    "signature": data.get("signature", ""),
-                    "avatar": data.get("round_head_img") or data.get("cover", "")
-                }]
-    except Exception:
-        pass
-
-    raise MPTextCrawlerError(
-        code="PARSE_ERROR",
-        message="无法从文章链接解析公众号信息",
-        suggestion="请确保链接是有效的微信公众号文章"
-    )
-
-
-async def get_articles_by_fakeid(fakeid: str, begin: int = 0, size: int = 5) -> List[Dict]:
-    """
-    Get article list by fakeid
-    Endpoint: GET /api/public/v1/article
-    Returns: list of articles with title, link, cover, update_time, etc.
-    """
-    api_key = get_api_key()
-    if not api_key:
-        raise MPTextCrawlerError(
-            code="MISSING_API_KEY",
-            message="MPTEXT_API_KEY not found",
-            suggestion="请在 .env 配置 MPTEXT_API_KEY=YOUR_MPTEXT_API_KEY"
-        )
-
-    if size > 20:
-        size = 20
-
-    response = http_get_with_retry(
-        "/api/public/v1/article",
-        {"fakeid": fakeid, "begin": str(begin), "size": str(size)},
-        api_key
-    )
-    result = validate_response(response, mode="strict")
-    return result.get("articles", [])
-
-
-async def download_article(url: str, fmt: str = "markdown") -> str:
-    """
-    Download article content
-    Endpoint: GET /api/public/v1/download
-    Supported formats: markdown, html, text, json
-    """
-    format_str = normalize_format(fmt)
-    response = http_get_with_retry(
-        "/api/public/v1/download",
-        {"url": url, "format": format_str},
-        ""  # download endpoint doesn't require auth
-    )
-    # download uses allow_content mode since it returns content directly
-    return response
-
-
-async def get_author_info(fakeid: str) -> Dict[str, Any]:
-    """
-    Get account subject info (beta)
-    Endpoint: GET /api/public/beta/authorinfo
-    Returns: identity_name, is_verify, original_article_count, etc.
-    """
-    response = http_get_with_retry(
-        "/api/public/beta/authorinfo",
-        {"fakeid": fakeid},
-        ""  # authorinfo doesn't require auth
-    )
-    result = validate_response(response, mode="strict")
-    return result
-
-
-# ============ Article Processing Functions ============
-
-def clean_markdown_content(content: str) -> str:
-    """Clean and normalize markdown content - matches mptext-crawler behavior"""
-    if not content:
+def _clean_text(value: Any) -> str:
+    if value is None:
         return ""
-
-    lines = content.split("\n")
-    cleaned_lines = []
-    skip_patterns = [
-        r"^#\s*$",
-        r"^\s*$",
-        r"^>\s*$",
-        r"\[TOC\]",
-        r"^_footer",
-        r"^_header",
-        r"^-\s*$",
-    ]
-
-    for line in lines:
-        should_skip = False
-        for pattern in skip_patterns:
-            if re.match(pattern, line.strip()):
-                should_skip = True
-                break
-        if not should_skip:
-            cleaned_lines.append(line)
-
-    return "\n".join(cleaned_lines).strip()
+    return str(value).strip()
 
 
-def extract_title_from_markdown(content: str) -> str:
-    """Extract title from markdown content"""
-    for line in content.split("\n"):
-        if line.startswith("# "):
-            return line[2:].strip().split(" =", 1)[0] or "无标题"
-    return "无标题"
-
-
-def extract_nickname_from_json(meta: dict) -> str:
-    """Extract nick_name from JSON metadata - matches mptext-crawler logic"""
-    if not isinstance(meta, dict):
-        return ""
-    nick = str(meta.get("nick_name", "")).strip()
-    if nick:
-        return nick
-    biz_card = meta.get("biz_card")
-    if isinstance(biz_card, dict):
-        items = biz_card.get("list")
-        if isinstance(items, list):
-            for item in items:
-                if isinstance(item, dict):
-                    name = str(item.get("nickname", "")).strip()
-                    if name:
-                        return name
+def _first_child_text(node: ET.Element, *names: str) -> str:
+    wanted = set(names)
+    for child in list(node):
+        if _strip_namespace(child.tag) in wanted:
+            return _clean_text("".join(child.itertext()))
     return ""
 
 
-# ============ Main Crawler Functions ============
+def _first_child_attr(node: ET.Element, name: str, attr: str) -> str:
+    for child in list(node):
+        if _strip_namespace(child.tag) == name:
+            value = child.attrib.get(attr)
+            if value:
+                return value.strip()
+    return ""
+
+
+def _normalize_html_content(content: str) -> str:
+    if not content:
+        return ""
+
+    normalized = re.sub(r"(?i)<br\s*/?>", "\n", content)
+    normalized = re.sub(r"(?i)</p\s*>", "\n\n", normalized)
+    normalized = re.sub(r"(?i)</div\s*>", "\n", normalized)
+    normalized = re.sub(r"(?i)</li\s*>", "\n", normalized)
+    normalized = re.sub(r"(?i)</h[1-6]\s*>", "\n\n", normalized)
+    normalized = re.sub(r"(?is)<script.*?</script>", "", normalized)
+    normalized = re.sub(r"(?is)<style.*?</style>", "", normalized)
+    normalized = re.sub(r"(?s)<[^>]+>", "", normalized)
+    normalized = html.unescape(normalized)
+    normalized = normalized.replace("\r", "\n")
+    normalized = re.sub(r"\n{3,}", "\n\n", normalized)
+    normalized = re.sub(r"[ \t]+", " ", normalized)
+    return normalized.strip()
+
+
+def _normalize_entry_content(content: str) -> str:
+    if not content:
+        return ""
+    if "<" in content and ">" in content:
+        return _normalize_html_content(content)
+    return html.unescape(content).strip()
+
+
+def _parse_datetime(value: str) -> Optional[datetime]:
+    raw = _clean_text(value)
+    if not raw:
+        return None
+
+    try:
+        parsed = parsedate_to_datetime(raw)
+        if parsed.tzinfo is not None:
+            return parsed.astimezone(timezone.utc).replace(tzinfo=None)
+        return parsed
+    except (TypeError, ValueError, IndexError, OverflowError):
+        pass
+
+    candidate = raw.replace("Z", "+00:00")
+    try:
+        parsed = datetime.fromisoformat(candidate)
+    except ValueError:
+        return None
+
+    if parsed.tzinfo is not None:
+        return parsed.astimezone(timezone.utc).replace(tzinfo=None)
+    return parsed
+
+
+def _normalize_xml_text(payload: str) -> str:
+    return payload.lstrip("\ufeff").strip()
+
+
+async def fetch_feed_document(url: str, auth_key: str = "") -> Tuple[str, str]:
+    headers = {
+        "User-Agent": USER_AGENT,
+        "Accept": ",".join(
+            [
+                "application/rss+xml",
+                "application/atom+xml",
+                "application/feed+json",
+                "application/json;q=0.9",
+                "application/xml;q=0.8",
+                "text/xml;q=0.8",
+                "text/plain;q=0.5",
+            ]
+        ),
+    }
+    if auth_key:
+        headers["Authorization"] = f"Bearer {auth_key}"
+        headers["X-Auth-Key"] = auth_key
+
+    last_error: Optional[Exception] = None
+    for _attempt in range(MAX_RETRIES):
+        try:
+            async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT, follow_redirects=True) as client:
+                response = await client.get(url, headers=headers, follow_redirects=True)
+            response.raise_for_status()
+            return response.text, response.headers.get("content-type", "")
+        except httpx.HTTPError as exc:
+            last_error = exc
+
+    raise FeedCrawlerError(
+        code="NETWORK_ERROR",
+        message=str(last_error) if last_error else "feed request failed",
+        suggestion="请检查 feed URL 是否可访问",
+    )
+
+
+def _parse_rss_feed(root: ET.Element) -> Tuple[Dict[str, str], List[Dict[str, Any]]]:
+    channel = None
+    if _strip_namespace(root.tag).lower() == "rss":
+        for child in list(root):
+            if _strip_namespace(child.tag) == "channel":
+                channel = child
+                break
+    if channel is None:
+        channel = root
+
+    feed_meta = {
+        "title": _first_child_text(channel, "title") or "Untitled Feed",
+        "link": _first_child_text(channel, "link"),
+    }
+
+    items = [child for child in list(channel) if _strip_namespace(child.tag) == "item"]
+    if not items:
+        items = [child for child in root.iter() if _strip_namespace(child.tag) == "item"]
+
+    entries: List[Dict[str, Any]] = []
+    for item in items:
+        title = _first_child_text(item, "title") or "Untitled Entry"
+        link = _first_child_text(item, "link")
+        external_id = _first_child_text(item, "guid", "id") or link or title
+        content = (
+            _first_child_text(item, "encoded")
+            or _first_child_text(item, "content")
+            or _first_child_text(item, "description")
+            or _first_child_text(item, "summary")
+        )
+        author = _first_child_text(item, "creator", "author")
+        published_at = _parse_datetime(
+            _first_child_text(item, "pubDate", "date", "published", "updated")
+        )
+        entries.append(
+            {
+                "external_id": external_id,
+                "title": title,
+                "link": link,
+                "content": _normalize_entry_content(content),
+                "author": author,
+                "published_at": published_at,
+            }
+        )
+
+    return feed_meta, entries
+
+
+def _parse_atom_feed(root: ET.Element) -> Tuple[Dict[str, str], List[Dict[str, Any]]]:
+    feed_meta = {
+        "title": _first_child_text(root, "title") or "Untitled Feed",
+        "link": _first_child_attr(root, "link", "href") or _first_child_text(root, "link"),
+    }
+
+    entries: List[Dict[str, Any]] = []
+    for entry in [child for child in list(root) if _strip_namespace(child.tag) == "entry"]:
+        title = _first_child_text(entry, "title") or "Untitled Entry"
+        link = _first_child_attr(entry, "link", "href") or _first_child_text(entry, "link")
+        external_id = _first_child_text(entry, "id") or link or title
+        content = _first_child_text(entry, "content") or _first_child_text(entry, "summary")
+        author = _first_child_text(entry, "name", "author")
+        published_at = _parse_datetime(
+            _first_child_text(entry, "published", "updated")
+        )
+        entries.append(
+            {
+                "external_id": external_id,
+                "title": title,
+                "link": link,
+                "content": _normalize_entry_content(content),
+                "author": author,
+                "published_at": published_at,
+            }
+        )
+
+    return feed_meta, entries
+
+
+def _parse_json_feed(payload: str) -> Tuple[Dict[str, str], List[Dict[str, Any]]]:
+    try:
+        data = json.loads(payload)
+    except json.JSONDecodeError as exc:
+        raise FeedCrawlerError(
+            code="INVALID_JSON",
+            message="feed 响应不是合法 JSON",
+            suggestion="请确认该源返回的是 JSON Feed",
+        ) from exc
+
+    if not isinstance(data, dict):
+        raise FeedCrawlerError(
+            code="INVALID_JSON_FEED",
+            message="feed JSON 结构不正确",
+            suggestion="请确认该源返回的是对象形式的 JSON Feed",
+        )
+
+    feed_meta = {
+        "title": _clean_text(data.get("title")) or "Untitled Feed",
+        "link": _clean_text(data.get("home_page_url") or data.get("feed_url")),
+    }
+
+    entries: List[Dict[str, Any]] = []
+    for item in data.get("items", []):
+        if not isinstance(item, dict):
+            continue
+        title = _clean_text(item.get("title")) or "Untitled Entry"
+        link = _clean_text(item.get("url") or item.get("external_url"))
+        external_id = _clean_text(item.get("id")) or link or title
+        content = _clean_text(
+            item.get("content_text")
+            or item.get("content_html")
+            or item.get("summary")
+        )
+        author = ""
+        authors = item.get("authors")
+        if isinstance(authors, list) and authors:
+            first_author = authors[0]
+            if isinstance(first_author, dict):
+                author = _clean_text(first_author.get("name"))
+        published_at = _parse_datetime(
+            _clean_text(item.get("date_published") or item.get("date_modified"))
+        )
+        entries.append(
+            {
+                "external_id": external_id,
+                "title": title,
+                "link": link,
+                "content": _normalize_entry_content(content),
+                "author": author,
+                "published_at": published_at,
+            }
+        )
+
+    return feed_meta, entries
+
+
+def parse_feed_document(payload: str, content_type: str = "") -> Tuple[Dict[str, str], List[Dict[str, Any]]]:
+    normalized = payload.strip()
+    if not normalized:
+        raise FeedCrawlerError(
+            code="EMPTY_FEED",
+            message="feed 响应为空",
+            suggestion="请检查 feed URL 是否正确",
+        )
+
+    lowered_type = content_type.lower()
+    if normalized.startswith("{") or "json" in lowered_type:
+        return _parse_json_feed(normalized)
+
+    try:
+        root = ET.fromstring(_normalize_xml_text(normalized))
+    except ET.ParseError as exc:
+        raise FeedCrawlerError(
+            code="INVALID_XML",
+            message="feed 响应不是合法 XML",
+            suggestion="请确认该源返回的是 RSS 或 Atom XML",
+        ) from exc
+
+    root_name = _strip_namespace(root.tag).lower()
+    if root_name == "feed":
+        return _parse_atom_feed(root)
+    if root_name in {"rss", "rdf", "rdf:rdf"}:
+        return _parse_rss_feed(root)
+
+    raise FeedCrawlerError(
+        code="UNSUPPORTED_FEED",
+        message=f"不支持的 feed 根节点: {root_name}",
+        suggestion="当前仅支持 RSS / Atom / JSON Feed",
+    )
+
+
+def _resolve_feed_url(source: Dict[str, Any], source_config: Dict[str, Any]) -> str:
+    feed_url = _clean_text(source_config.get("feed_url")) or _clean_text(source.get("api_base_url"))
+    if not feed_url:
+        raise FeedCrawlerError(
+            code="MISSING_FEED_URL",
+            message="Feed URL 不能为空",
+            suggestion="请为该来源配置可访问的 feed URL",
+        )
+    return feed_url
+
+
+def _coerce_source_config(raw_config: Any) -> Dict[str, Any]:
+    if isinstance(raw_config, str):
+        try:
+            parsed = json.loads(raw_config)
+        except json.JSONDecodeError:
+            return {}
+        return parsed if isinstance(parsed, dict) else {}
+    return raw_config if isinstance(raw_config, dict) else {}
+
+
+def _normalize_entry_link(link: str, feed_link: str, feed_url: str) -> str:
+    candidate = _clean_text(link)
+    if not candidate:
+        return feed_link or feed_url
+    if candidate.startswith(("http://", "https://")):
+        return candidate
+    base = feed_link or feed_url
+    return urljoin(base, candidate)
+
 
 async def fetch_source_articles(source_id: int) -> Tuple[int, str]:
-    """Fetch all articles from a source - enhanced version"""
     source = await _maybe_await(get_source_by_id(source_id))
     if not source:
         return 0, "新闻源不存在"
 
-    source_config_raw = source.get("config")
-    if isinstance(source_config_raw, str):
-        source_config = json.loads(source_config_raw) if source_config_raw else {}
-    else:
-        source_config = source_config_raw or {}
+    source_type = _clean_text(source.get("source_type"))
+    if source_type not in SUPPORTED_SOURCE_TYPES:
+        return 0, "暂不支持此类型的新闻源"
 
-    if source["source_type"] == "mptext":
-        fakeid = source_config.get("fakeid")
-        if not fakeid:
-            return 0, "MPText 配置缺少 fakeid"
+    source_config = _coerce_source_config(source.get("config"))
 
-        try:
-            # Get only the latest article (size=1) for daily digest
-            all_articles = []
-            articles = await get_articles_by_fakeid(fakeid, begin=0, size=1)
-            all_articles.extend(articles)
+    try:
+        feed_url = _resolve_feed_url(source, source_config)
+        payload, content_type = await fetch_feed_document(feed_url, source.get("auth_key") or "")
+        feed_meta, entries = parse_feed_document(payload, content_type)
 
-            added_count = 0
+        added_count = 0
+        feed_link = _clean_text(feed_meta.get("link"))
+        source_name = _clean_text(source.get("name")) or _clean_text(feed_meta.get("title")) or "未知来源"
 
-            for article in all_articles:
-                external_id = article.get("mid", "") or article.get("link", "")
-                title = article.get("title", "无标题")
-                link = article.get("link", "")
-                update_time = article.get("update_time", 0)
+        for entry in entries:
+            external_id = _clean_text(entry.get("external_id"))
+            if not external_id:
+                continue
 
-                if not link:
-                    continue
+            existing = await _maybe_await(get_article_by_external_id(source_id, external_id))
+            if existing:
+                continue
 
-                # Check if article already exists
-                existing = await _maybe_await(get_article_by_external_id(source_id, external_id))
-                if existing:
-                    continue
+            title = _clean_text(entry.get("title")) or "无标题"
+            link = _normalize_entry_link(_clean_text(entry.get("link")), feed_link, feed_url)
+            content = _clean_text(entry.get("content")) or title
+            author = _clean_text(entry.get("author")) or source_name
 
-                # Parse update_time to datetime
-                published_at = None
-                if update_time:
-                    try:
-                        published_at = datetime.fromtimestamp(update_time)
-                    except Exception:
-                        pass
-
-                # Download article content
-                content = ""
-                try:
-                    content = await download_article(link, "markdown")
-                    content = clean_markdown_content(content)
-                except Exception as e:
-                    content = f"内容下载失败: {str(e)}"
-
-                # Create article in database
-                await _maybe_await(create_article(
+            await _maybe_await(
+                create_article(
                     source_id=source_id,
                     title=title,
                     external_id=external_id,
                     link=link,
                     content=content,
-                    author=source["name"],
-                    published_at=published_at
-                ))
-                added_count += 1
+                    author=author,
+                    published_at=entry.get("published_at"),
+                )
+            )
+            added_count += 1
 
-            # Update source fetch time and count
-            await _maybe_await(update_source_fetch_time(source_id, len(all_articles)))
-            await _maybe_await(add_fetch_log(source_id, "success", f"成功抓取 {added_count} 篇新文章"))
-            return added_count, "抓取成功"
-
-        except MPTextCrawlerError as e:
-            await _maybe_await(add_fetch_log(source_id, "failed", f"[{e.code}] {e.message}"))
-            return 0, f"抓取失败: [{e.code}] {e.message}"
-        except Exception as e:
-            await _maybe_await(add_fetch_log(source_id, "failed", str(e)))
-            return 0, f"抓取失败: {str(e)}"
-
-    else:
-        # Custom source type - placeholder for other APIs
-        return 0, "暂不支持此类型的新闻源"
+        await _maybe_await(update_source_fetch_time(source_id, len(entries)))
+        await _maybe_await(add_fetch_log(source_id, "success", f"成功抓取 {added_count} 篇新文章"))
+        return added_count, "抓取成功"
+    except FeedCrawlerError as exc:
+        await _maybe_await(add_fetch_log(source_id, "failed", f"[{exc.code}] {exc.message}"))
+        return 0, f"抓取失败: [{exc.code}] {exc.message}"
+    except Exception as exc:
+        await _maybe_await(add_fetch_log(source_id, "failed", str(exc)))
+        return 0, f"抓取失败: {str(exc)}"
 
 
 async def fetch_all_sources() -> Dict[int, Tuple[int, str]]:
-    """Fetch articles from all sources"""
     from database import get_all_sources
 
     sources = await _maybe_await(get_all_sources())
-    results = {}
+    results: Dict[int, Tuple[int, str]] = {}
 
     for source in sources:
         try:
-            count, msg = await fetch_source_articles(source["id"])
-            results[source["id"]] = (count, msg)
-        except Exception as e:
-            results[source["id"]] = (0, f"抓取异常: {str(e)}")
+            count, message = await fetch_source_articles(source["id"])
+            results[source["id"]] = (count, message)
+        except Exception as exc:
+            results[source["id"]] = (0, f"抓取异常: {str(exc)}")
 
     return results

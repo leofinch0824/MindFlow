@@ -17,10 +17,16 @@ class ZoneType(str, Enum):
     SURPRISE = "surprise"
 
 
+class SourceType(str, Enum):
+    NATIVE_RSS = "native_rss"
+    RSSHUB = "rsshub"
+    WE_MP_RSS = "we_mp_rss"
+
+
 # News Source Models
 class NewsSourceCreate(BaseModel):
     name: str
-    source_type: str = "custom"
+    source_type: SourceType = SourceType.NATIVE_RSS
     api_base_url: str
     auth_key: str = ""
     config: dict = {}
@@ -28,7 +34,7 @@ class NewsSourceCreate(BaseModel):
 
 class NewsSourceUpdate(BaseModel):
     name: Optional[str] = None
-    source_type: Optional[str] = None
+    source_type: Optional[SourceType] = None
     api_base_url: Optional[str] = None
     auth_key: Optional[str] = None
     config: Optional[dict] = None

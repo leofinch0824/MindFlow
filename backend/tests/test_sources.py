@@ -13,10 +13,10 @@ class TestSourcesAPI:
             {
                 "id": 1,
                 "name": "测试源1",
-                "source_type": "mptext",
-                "api_base_url": "https://example.com",
-                "auth_key": "test-key-1",
-                "config": '{"fakeid": "fake123"}',
+                "source_type": "native_rss",
+                "api_base_url": "https://example.com/feed.xml",
+                "auth_key": "",
+                "config": '{"feed_url": "https://example.com/feed.xml"}',
                 "created_at": "2026-04-08 10:00:00",
                 "updated_at": "2026-04-08 10:00:00",
                 "last_fetch_at": None,
@@ -25,10 +25,10 @@ class TestSourcesAPI:
             {
                 "id": 2,
                 "name": "测试源2",
-                "source_type": "custom",
-                "api_base_url": "https://api.example.com",
-                "auth_key": "test-key-2",
-                "config": "{}",
+                "source_type": "we_mp_rss",
+                "api_base_url": "https://rss.example.com/feed/123.xml",
+                "auth_key": "",
+                "config": '{"feed_url": "https://rss.example.com/feed/123.xml"}',
                 "created_at": "2026-04-08 11:00:00",
                 "updated_at": "2026-04-08 11:00:00",
                 "last_fetch_at": "2026-04-08 12:00:00",
@@ -59,7 +59,7 @@ class TestSourcesAPI:
             data = response.json()
             assert len(data) == 2
             assert data[0]["name"] == "测试源1"
-            assert data[0]["config"]["fakeid"] == "fake123"
+            assert data[0]["config"]["feed_url"] == "https://example.com/feed.xml"
 
     def test_list_sources_tolerates_nullable_legacy_fields(self, client):
         """Test listing sources when legacy rows contain nullable fields."""
@@ -68,7 +68,7 @@ class TestSourcesAPI:
                 {
                     "id": 1,
                     "name": "旧数据源",
-                    "source_type": "custom",
+                    "source_type": "native_rss",
                     "api_base_url": "https://example.com",
                     "auth_key": None,
                     "config": None,
@@ -110,10 +110,10 @@ class TestSourcesAPI:
             mock_get.return_value = {
                 "id": 1,
                 "name": "新源",
-                "source_type": "mptext",
-                "api_base_url": "https://example.com",
-                "auth_key": "key",
-                "config": "{}",
+                "source_type": "rsshub",
+                "api_base_url": "https://rsshub.example.com/github/trending/daily",
+                "auth_key": "",
+                "config": '{"feed_url": "https://rsshub.example.com/github/trending/daily"}',
                 "created_at": "2026-04-08 10:00:00",
                 "updated_at": "2026-04-08 10:00:00",
                 "last_fetch_at": None,
@@ -121,14 +121,26 @@ class TestSourcesAPI:
             }
             response = client.post("/api/sources", json={
                 "name": "新源",
-                "source_type": "mptext",
-                "api_base_url": "https://example.com",
-                "auth_key": "key",
-                "config": {}
+                "source_type": "rsshub",
+                "api_base_url": "https://rsshub.example.com/github/trending/daily",
+                "auth_key": "",
+                "config": {"feed_url": "https://rsshub.example.com/github/trending/daily"}
             })
             assert response.status_code == 200
             data = response.json()
             assert data["name"] == "新源"
+            assert data["source_type"] == "rsshub"
+
+    def test_create_source_rejects_legacy_mptext_type(self, client):
+        """Test legacy mptext sources are no longer accepted."""
+        response = client.post("/api/sources", json={
+            "name": "旧公众号源",
+            "source_type": "mptext",
+            "api_base_url": "https://down.mptext.top",
+            "auth_key": "",
+            "config": {"fakeid": "legacy-fakeid"}
+        })
+        assert response.status_code == 422
 
     def test_update_source(self, client, mock_sources):
         """Test updating a source"""

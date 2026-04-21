@@ -1,26 +1,11 @@
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
 from schemas import NewsSourceCreate, NewsSourceUpdate, NewsSourceResponse, FetchResponse
 from database import (
     get_all_sources, get_source_by_id, create_source,
-    update_source, delete_source, add_fetch_log
+    update_source, delete_source
 )
-from services.crawler import fetch_source_articles, search_account_by_url, get_author_info
+from services.crawler import fetch_source_articles
 import json
-
-
-class ParseUrlRequest(BaseModel):
-    url: str
-
-
-class ParseUrlResponse(BaseModel):
-    fakeid: str
-    nickname: str
-    alias: str = ""
-    is_verify: int = 0
-    verify_info: str = ""
-    signature: str = ""
-    avatar: str = ""
 
 router = APIRouter(prefix="/api/sources", tags=["新闻源管理"])
 
@@ -67,6 +52,32 @@ def _source_to_response(source: dict) -> dict:
     return result
 
 
+def _normalize_source_type(value):
+    return value.value if hasattr(value, "value") else value
+
+
+def _normalize_source_payload(payload: dict) -> dict:
+    normalized = dict(payload)
+    normalized["source_type"] = _normalize_source_type(normalized.get("source_type"))
+
+    config = normalized.get("config") or {}
+    if isinstance(config, str):
+        try:
+            config = json.loads(config)
+        except json.JSONDecodeError:
+            config = {}
+    if not isinstance(config, dict):
+        config = {}
+
+    feed_url = normalized.get("api_base_url")
+    if feed_url and not config.get("feed_url"):
+        config["feed_url"] = feed_url
+
+    normalized["config"] = config
+    normalized["auth_key"] = normalized.get("auth_key") or ""
+    return normalized
+
+
 @router.get("", response_model=list[NewsSourceResponse])
 async def list_sources():
     """获取所有新闻源"""
@@ -74,56 +85,16 @@ async def list_sources():
     return [_source_to_response(s) for s in sources]
 
 
-@router.post("/parse-url", response_model=ParseUrlResponse)
-async def parse_article_url(request: ParseUrlRequest):
-    """
-    通过文章链接解析公众号信息
-    用户提供微信公众号文章链接，后端自动获取该公众号的 fakeid 和基本信息
-    """
-    try:
-        # 调用 accountbyurl 接口获取公众号信息
-        accounts = await search_account_by_url(request.url)
-
-        if not accounts:
-            raise HTTPException(status_code=404, detail="未找到该文章对应的公众号")
-
-        account = accounts[0]
-        fakeid = account.get("fakeid", "")
-
-        if not fakeid:
-            raise HTTPException(status_code=400, detail="无法获取公众号 fakeid")
-
-        # 获取更详细的主体信息
-        author_info = {}
-        try:
-            author_info = await get_author_info(fakeid)
-        except Exception:
-            pass
-
-        return ParseUrlResponse(
-            fakeid=fakeid,
-            nickname=account.get("nickname", ""),
-            alias=account.get("alias", ""),
-            is_verify=account.get("verify_status", 0),
-            verify_info=author_info.get("identity_name", ""),
-            signature=account.get("signature", ""),
-            avatar=account.get("avatar", "")
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"解析失败: {str(e)}")
-
-
 @router.post("", response_model=NewsSourceResponse)
 async def add_source(source: NewsSourceCreate):
     """添加新闻源"""
+    payload = _normalize_source_payload(source.model_dump())
     source_id = await create_source(
-        name=source.name,
-        source_type=source.source_type,
-        api_base_url=source.api_base_url,
-        auth_key=source.auth_key,
-        config=source.config
+        name=payload["name"],
+        source_type=payload["source_type"],
+        api_base_url=payload["api_base_url"],
+        auth_key=payload["auth_key"],
+        config=payload["config"]
     )
     result = await get_source_by_id(source_id)
     return _source_to_response(result)
@@ -146,6 +117,7 @@ async def modify_source(source_id: int, update: NewsSourceUpdate):
         raise HTTPException(status_code=404, detail="新闻源不存在")
 
     update_data = {k: v for k, v in update.model_dump().items() if v is not None}
+    update_data = _normalize_source_payload(update_data)
     await update_source(source_id, **update_data)
 
     result = await get_source_by_id(source_id)
