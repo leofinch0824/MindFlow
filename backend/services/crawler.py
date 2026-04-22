@@ -16,6 +16,7 @@ from database import (
     get_source_by_id,
     update_source_fetch_time,
 )
+from services.we_mprss import WE_MPRSS_SOURCE_TYPE, normalize_feed_url_for_discovery
 
 DEFAULT_TIMEOUT = 30
 MAX_RETRIES = 3
@@ -187,6 +188,7 @@ def _parse_rss_feed(root: ET.Element) -> Tuple[Dict[str, str], List[Dict[str, An
             or _first_child_text(item, "description")
             or _first_child_text(item, "summary")
         )
+        description = _first_child_text(item, "description") or _first_child_text(item, "summary")
         author = _first_child_text(item, "creator", "author")
         published_at = _parse_datetime(
             _first_child_text(item, "pubDate", "date", "published", "updated")
@@ -197,6 +199,7 @@ def _parse_rss_feed(root: ET.Element) -> Tuple[Dict[str, str], List[Dict[str, An
                 "title": title,
                 "link": link,
                 "content": _normalize_entry_content(content),
+                "description": _normalize_entry_content(description),
                 "author": author,
                 "published_at": published_at,
             }
@@ -217,6 +220,7 @@ def _parse_atom_feed(root: ET.Element) -> Tuple[Dict[str, str], List[Dict[str, A
         link = _first_child_attr(entry, "link", "href") or _first_child_text(entry, "link")
         external_id = _first_child_text(entry, "id") or link or title
         content = _first_child_text(entry, "content") or _first_child_text(entry, "summary")
+        description = _first_child_text(entry, "summary") or _first_child_text(entry, "content")
         author = _first_child_text(entry, "name", "author")
         published_at = _parse_datetime(
             _first_child_text(entry, "published", "updated")
@@ -227,6 +231,7 @@ def _parse_atom_feed(root: ET.Element) -> Tuple[Dict[str, str], List[Dict[str, A
                 "title": title,
                 "link": link,
                 "content": _normalize_entry_content(content),
+                "description": _normalize_entry_content(description),
                 "author": author,
                 "published_at": published_at,
             }
@@ -253,8 +258,8 @@ def _parse_json_feed(payload: str) -> Tuple[Dict[str, str], List[Dict[str, Any]]
         )
 
     feed_meta = {
-        "title": _clean_text(data.get("title")) or "Untitled Feed",
-        "link": _clean_text(data.get("home_page_url") or data.get("feed_url")),
+        "title": _clean_text(data.get("title") or data.get("name")) or "Untitled Feed",
+        "link": _clean_text(data.get("home_page_url") or data.get("feed_url") or data.get("link")),
     }
 
     entries: List[Dict[str, Any]] = []
@@ -262,13 +267,16 @@ def _parse_json_feed(payload: str) -> Tuple[Dict[str, str], List[Dict[str, Any]]
         if not isinstance(item, dict):
             continue
         title = _clean_text(item.get("title")) or "Untitled Entry"
-        link = _clean_text(item.get("url") or item.get("external_url"))
+        link = _clean_text(item.get("url") or item.get("external_url") or item.get("link"))
         external_id = _clean_text(item.get("id")) or link or title
         content = _clean_text(
             item.get("content_text")
             or item.get("content_html")
+            or item.get("content")
             or item.get("summary")
+            or item.get("description")
         )
+        description = _clean_text(item.get("description") or item.get("summary"))
         author = ""
         authors = item.get("authors")
         if isinstance(authors, list) and authors:
@@ -276,7 +284,7 @@ def _parse_json_feed(payload: str) -> Tuple[Dict[str, str], List[Dict[str, Any]]
             if isinstance(first_author, dict):
                 author = _clean_text(first_author.get("name"))
         published_at = _parse_datetime(
-            _clean_text(item.get("date_published") or item.get("date_modified"))
+            _clean_text(item.get("date_published") or item.get("date_modified") or item.get("updated"))
         )
         entries.append(
             {
@@ -284,6 +292,7 @@ def _parse_json_feed(payload: str) -> Tuple[Dict[str, str], List[Dict[str, Any]]
                 "title": title,
                 "link": link,
                 "content": _normalize_entry_content(content),
+                "description": _normalize_entry_content(description),
                 "author": author,
                 "published_at": published_at,
             }
@@ -371,6 +380,8 @@ async def fetch_source_articles(source_id: int) -> Tuple[int, str]:
 
     try:
         feed_url = _resolve_feed_url(source, source_config)
+        if source_type == WE_MPRSS_SOURCE_TYPE:
+            feed_url = normalize_feed_url_for_discovery(feed_url)
         payload, content_type = await fetch_feed_document(feed_url, source.get("auth_key") or "")
         feed_meta, entries = parse_feed_document(payload, content_type)
 
@@ -392,16 +403,23 @@ async def fetch_source_articles(source_id: int) -> Tuple[int, str]:
             content = _clean_text(entry.get("content")) or title
             author = _clean_text(entry.get("author")) or source_name
 
+            create_payload = {
+                "source_id": source_id,
+                "title": title,
+                "external_id": external_id,
+                "link": link,
+                "content": content,
+                "author": author,
+                "published_at": entry.get("published_at"),
+            }
+
+            if source_type == WE_MPRSS_SOURCE_TYPE:
+                create_payload["content"] = _clean_text(entry.get("description")) or title
+                create_payload["content_html"] = ""
+                create_payload["content_refresh_status"] = "waiting_for_refresh"
+
             await _maybe_await(
-                create_article(
-                    source_id=source_id,
-                    title=title,
-                    external_id=external_id,
-                    link=link,
-                    content=content,
-                    author=author,
-                    published_at=entry.get("published_at"),
-                )
+                create_article(**create_payload)
             )
             added_count += 1
 
