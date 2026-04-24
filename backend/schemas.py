@@ -178,6 +178,12 @@ class ScheduleJobResponse(BaseModel):
     id: str
     name: str
     next_run: Optional[str] = None
+    icon: Optional[str] = None
+    summary_kind: Optional[str] = None
+    title_zh: Optional[str] = None
+    title_en: Optional[str] = None
+    description_zh: Optional[str] = None
+    description_en: Optional[str] = None
 
 
 class JobRunSummaryResponse(BaseModel):

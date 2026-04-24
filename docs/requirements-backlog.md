@@ -72,7 +72,7 @@
 | ID | 分类 | 优先级 | 状态 | 需求 | 备注 | 关联计划 |
 | --- | --- | --- | --- | --- | --- | --- |
 | `REQ-OPS-002` | `OPS` | P1 | `done` | 为后台任务补齐执行状态、结果与失败原因的可观测能力 | 已新增 `job_runs` 持久化模型，并为 `daily_fetch / we_mp_rss_content_refresh / anchor_extract / daily_digest` 写入执行状态、结果摘要与失败原因；`/api/config/schedule` 已可返回 `latest_runs` | [2026-04-24-job-observability-and-data-model.md](superpowers/plans/2026-04-24-job-observability-and-data-model.md) |
-| `REQ-OPS-004` | `OPS` | P1 | `planned` | 把刷新频率设置从已有 API 接到前端设置页 | 后端 schedule API 已支持分钟级 `HH:mm` 配置、持久化保存、服务启动恢复与 `latest_runs` 摘要，但 UI 尚未接入 | [2026-04-22-plan-draft.md](superpowers/plans/2026-04-22-plan-draft.md) |
+| `REQ-OPS-004` | `OPS` | P1 | `done` | 把刷新频率设置从已有 API 接到前端设置页 | 设置页已接入分钟级 `HH:mm` 调度配置编辑、保存与最近运行状态摘要展示 | [2026-04-22-plan-draft.md](superpowers/plans/2026-04-22-plan-draft.md) |
 | `REQ-OPS-003` | `OPS` | P2 | `planned` | 增加任务 / 日志页，面向用户或操作者展示任务运行记录 | 仍然重要，但应放在 `REQ-OPS-002` 把任务状态与失败信息打通之后 | [2026-04-22-plan-draft.md](superpowers/plans/2026-04-22-plan-draft.md) |
 | `REQ-OPS-001` | `OPS` | P1 | `done` | 修通并验证 `定时抓取 -> 锚点提取 -> Digest 生成` 的后台任务链路 | 已由 `we-mp-rss` 闭环补齐与本地验证完成，见 2026-04-22 progress 记录 | [2026-04-22-plan-draft.md](superpowers/plans/2026-04-22-plan-draft.md) |
 

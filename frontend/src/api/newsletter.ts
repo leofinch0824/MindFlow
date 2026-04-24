@@ -89,6 +89,37 @@ export interface AIConnectionTestResult {
   used_stored_api_key?: boolean;
 }
 
+export interface ScheduleJob {
+  id: string;
+  name: string;
+  next_run: string | null;
+  icon?: string | null;
+  summary_kind?: string | null;
+  title_zh?: string | null;
+  title_en?: string | null;
+  description_zh?: string | null;
+  description_en?: string | null;
+}
+
+export interface JobRunSummary {
+  id: number;
+  job_name: string;
+  job_type: string;
+  trigger_source: string;
+  status: string;
+  started_at: string | null;
+  finished_at: string | null;
+  error_message: string | null;
+  payload: Record<string, unknown>;
+  result_summary: Record<string, unknown>;
+}
+
+export interface ScheduleConfig {
+  times: string[];
+  jobs: ScheduleJob[];
+  latest_runs: Record<string, JobRunSummary>;
+}
+
 // === Digest Types ===
 export interface DigestSection {
   domain: string;
@@ -355,22 +386,7 @@ export const configApi = {
       body: JSON.stringify(data),
     }),
 
-  getSchedule: () => fetchApi<{
-    times: string[];
-    jobs: Array<{ id: string; name: string; next_run: string | null }>;
-    latest_runs: Record<string, {
-      id: number;
-      job_name: string;
-      job_type: string;
-      trigger_source: string;
-      status: string;
-      started_at: string | null;
-      finished_at: string | null;
-      error_message: string | null;
-      payload: Record<string, unknown>;
-      result_summary: Record<string, unknown>;
-    }>;
-  }>('/config/schedule'),
+  getSchedule: () => fetchApi<ScheduleConfig>('/config/schedule'),
 
   updateSchedule: (times: string[]) =>
     fetchApi<{ success: boolean; message: string }>('/config/schedule', {

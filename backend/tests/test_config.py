@@ -129,7 +129,13 @@ class TestConfigAPI:
                 {
                     "id": "daily_fetch",
                     "name": "fetch_all_sources_job",
-                    "next_run": "2026-04-09 08:00:00"
+                    "next_run": "2026-04-09 08:00:00",
+                    "icon": "rss_feed",
+                    "summary_kind": "fetch",
+                    "title_zh": "来源抓取",
+                    "title_en": "Source Fetch",
+                    "description_zh": "按配置时间点抓取所有来源",
+                    "description_en": "Fetch all sources at the configured times",
                 }
             ]
             mock_get_times.return_value = ["08:00", "12:00", "18:00", "23:30"]
@@ -151,6 +157,8 @@ class TestConfigAPI:
             data = response.json()
             assert len(data["jobs"]) == 1
             assert data["jobs"][0]["id"] == "daily_fetch"
+            assert data["jobs"][0]["summary_kind"] == "fetch"
+            assert data["jobs"][0]["title_zh"] == "来源抓取"
             assert data["times"] == ["08:00", "12:00", "18:00", "23:30"]
             assert data["latest_runs"]["daily_fetch"]["status"] == "success"
             assert data["latest_runs"]["daily_fetch"]["result_summary"]["articles_added"] == 4

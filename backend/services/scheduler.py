@@ -37,6 +37,41 @@ DEFAULT_ANCHOR_JOB_MINUTE = 40
 DEFAULT_DIGEST_JOB_HOUR = 9
 DEFAULT_DIGEST_JOB_MINUTE = 0
 
+JOB_UI_METADATA = {
+    "daily_fetch": {
+        "icon": "rss_feed",
+        "summary_kind": "fetch",
+        "title_zh": "来源抓取",
+        "title_en": "Source Fetch",
+        "description_zh": "按配置时间点抓取所有来源",
+        "description_en": "Fetch all sources at the configured times",
+    },
+    "we_mp_rss_content_refresh": {
+        "icon": "description",
+        "summary_kind": "content_refresh",
+        "title_zh": "正文补抓",
+        "title_en": "Content Backfill",
+        "description_zh": "补齐昨日抓取文章的缺失正文",
+        "description_en": "Backfill missing content for yesterday's fetched articles",
+    },
+    "anchor_extract": {
+        "icon": "auto_awesome",
+        "summary_kind": "anchor_extract",
+        "title_zh": "锚点提取",
+        "title_en": "Anchor Extraction",
+        "description_zh": "对已补齐正文的文章进行批量提锚",
+        "description_en": "Batch-extract anchors from content-ready articles",
+    },
+    "daily_digest": {
+        "icon": "newspaper",
+        "summary_kind": "digest",
+        "title_zh": "每日简报",
+        "title_en": "Daily Digest",
+        "description_zh": "基于昨日文章生成今日可读简报",
+        "description_en": "Generate today's readable digest from yesterday's articles",
+    },
+}
+
 scheduler = AsyncIOScheduler(timezone=ZoneInfo(DEFAULT_BUSINESS_TIMEZONE))
 configured_fetch_times = list(DEFAULT_FETCH_TIMES)
 
@@ -476,6 +511,7 @@ def get_jobs():
             "id": job.id,
             "name": job.name,
             "next_run": str(job.next_run_time) if job.next_run_time else None,
+            **JOB_UI_METADATA.get(job.id, {}),
         }
         for job in scheduler.get_jobs()
     ]
