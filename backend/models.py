@@ -134,6 +134,37 @@ class AIConfig(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class ScheduleConfig(Base):
+    __tablename__ = "schedule_config"
+    id = Column(Integer, primary_key=True, default=1)
+    fetch_times = Column(JSONB, default=list, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class JobRun(Base):
+    __tablename__ = "job_runs"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    job_name = Column(String, nullable=False)
+    job_type = Column(String, nullable=False, default="scheduler")
+    trigger_source = Column(String, nullable=False, default="cron")
+    target_type = Column(String)
+    target_id = Column(String)
+    status = Column(String, nullable=False, default="running")
+    retry_count = Column(Integer, default=0)
+    started_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    finished_at = Column(DateTime)
+    error_message = Column(Text)
+    payload = Column(JSONB, default=dict)
+    result_summary = Column(JSONB, default=dict)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        Index("idx_job_runs_name_started", "job_name", "started_at"),
+        Index("idx_job_runs_status", "status"),
+        Index("idx_job_runs_created_at", "created_at"),
+    )
+
+
 class FetchLog(Base):
     __tablename__ = "fetch_logs"
     id = Column(Integer, primary_key=True, autoincrement=True)

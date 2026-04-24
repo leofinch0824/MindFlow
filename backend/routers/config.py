@@ -5,10 +5,12 @@ from schemas import (
     AIConfigSaveResponse,
     AIConfigTestRequest,
     AIConfigTestResponse,
+    ScheduleConfigResponse,
+    ScheduleUpdateRequest,
 )
-from database import get_ai_config, update_ai_config
+from database import get_ai_config, get_latest_job_runs, get_schedule_config, update_ai_config, update_schedule_config
 from services.ai import test_ai_connection
-from services.scheduler import get_jobs, update_schedule
+from services.scheduler import get_fetch_schedule_times, get_jobs, parse_schedule_times, update_schedule
 from typing import Optional, Tuple
 
 router = APIRouter(prefix="/api/config", tags=["系统配置"])
@@ -153,17 +155,44 @@ async def test_ai(body: Optional[AIConfigTestRequest] = None):
     )
 
 
-@router.get("/schedule")
+@router.get("/schedule", response_model=ScheduleConfigResponse)
 async def get_schedule():
     """获取定时任务配置"""
     jobs = get_jobs()
-    return {"jobs": jobs}
+    persisted_schedule = await get_schedule_config()
+    times = persisted_schedule.get("fetch_times") or get_fetch_schedule_times()
+    latest_runs_raw = await get_latest_job_runs([job["id"] for job in jobs])
+    latest_runs = {
+        job_name: _format_job_run_summary(run)
+        for job_name, run in latest_runs_raw.items()
+    }
+    return {"times": times, "jobs": jobs, "latest_runs": latest_runs}
 
 
 @router.put("/schedule")
-async def save_schedule(hours: list[int]):
+async def save_schedule(body: ScheduleUpdateRequest):
     """更新定时任务配置"""
-    if not hours:
-        return {"success": False, "message": "请提供小时列表"}
-    update_schedule(hours)
-    return {"success": True, "message": f"定时任务已更新为每天 {hours} 点"}
+    if not body.times:
+        return {"success": False, "message": "请提供调度时间列表"}
+    try:
+        normalized_times = parse_schedule_times(body.times)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    await update_schedule_config(normalized_times)
+    update_schedule(normalized_times)
+    return {"success": True, "message": f"定时任务已更新为每天 {', '.join(normalized_times)}"}
+
+
+def _format_job_run_summary(run: dict) -> dict:
+    return {
+        "id": run.get("id", 0),
+        "job_name": run.get("job_name", ""),
+        "job_type": run.get("job_type", "scheduler"),
+        "trigger_source": run.get("trigger_source", "cron"),
+        "status": run.get("status", "unknown"),
+        "started_at": _format_updated_at(run.get("started_at")),
+        "finished_at": _format_updated_at(run.get("finished_at")),
+        "error_message": run.get("error_message"),
+        "payload": run.get("payload") or {},
+        "result_summary": run.get("result_summary") or {},
+    }

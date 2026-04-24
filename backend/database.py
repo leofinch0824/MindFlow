@@ -87,7 +87,7 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime, date, timedelta
 from models import (
     NewsSource, Article, AnchorPoint, DailyDigest,
-    UserInterestTag, UserBehaviorLog, DigestFeedback, AIConfig, FetchLog
+    UserInterestTag, UserBehaviorLog, DigestFeedback, AIConfig, FetchLog, JobRun, ScheduleConfig
 )
 from sqlalchemy import select, func, or_, and_
 
@@ -332,6 +332,15 @@ def _row_to_mapping(row) -> Optional[Dict[str, Any]]:
     return dict(row._mapping)
 
 
+def _model_to_dict(model) -> Dict[str, Any]:
+    """Convert a SQLAlchemy ORM instance to a plain dict."""
+    return {
+        key: value
+        for key, value in model.__dict__.items()
+        if not key.startswith("_")
+    }
+
+
 async def get_recent_now_candidates(hours: int = 48, limit: int = 60) -> List[Dict[str, Any]]:
     """Get recent anchor/article rows for the Now workbench using explicit joins."""
     cutoff = datetime.utcnow() - timedelta(hours=hours)
@@ -387,11 +396,27 @@ async def get_recent_now_candidates(hours: int = 48, limit: int = 60) -> List[Di
 async def get_articles_due_for_content_refresh(
     delay_minutes: int = 10,
     limit: int = 20,
+    fetched_after: Optional[datetime] = None,
+    fetched_before: Optional[datetime] = None,
 ) -> List[Dict[str, Any]]:
     """Get we-mp-rss articles ready to request protected content refresh."""
     cutoff = datetime.utcnow() - timedelta(minutes=delay_minutes)
 
     async with get_db() as session:
+        conditions = [
+            NewsSource.source_type == "we_mp_rss",
+            Article.content_refresh_status == "waiting_for_refresh",
+            or_(
+                and_(Article.provider_article_id.is_not(None), Article.provider_article_id != ""),
+                and_(Article.external_id.is_not(None), Article.external_id != ""),
+            ),
+            Article.fetched_at <= cutoff,
+        ]
+        if fetched_after is not None:
+            conditions.append(Article.fetched_at >= fetched_after)
+        if fetched_before is not None:
+            conditions.append(Article.fetched_at < fetched_before)
+
         result = await session.execute(
             select(
                 Article.id.label("article_id"),
@@ -410,15 +435,7 @@ async def get_articles_due_for_content_refresh(
             )
             .select_from(Article)
             .join(NewsSource, Article.source_id == NewsSource.id)
-            .where(
-                NewsSource.source_type == "we_mp_rss",
-                Article.content_refresh_status == "waiting_for_refresh",
-                or_(
-                    and_(Article.provider_article_id.is_not(None), Article.provider_article_id != ""),
-                    and_(Article.external_id.is_not(None), Article.external_id != ""),
-                ),
-                Article.fetched_at <= cutoff,
-            )
+            .where(*conditions)
             .order_by(Article.fetched_at.asc())
             .limit(limit)
         )
@@ -460,11 +477,25 @@ async def get_articles_with_active_refresh_tasks(limit: int = 20) -> List[Dict[s
 async def get_articles_ready_for_anchor_extraction(
     hours: int = 168,
     limit: int = 100,
+    fetched_after: Optional[datetime] = None,
+    fetched_before: Optional[datetime] = None,
 ) -> List[Dict[str, Any]]:
     """Get recent articles that are ready for anchor extraction."""
     cutoff = datetime.utcnow() - timedelta(hours=hours)
 
     async with get_db() as session:
+        conditions = [
+            Article.fetched_at >= cutoff,
+            or_(
+                NewsSource.source_type != "we_mp_rss",
+                Article.content_refresh_status == "detail_fetched",
+            ),
+        ]
+        if fetched_after is not None:
+            conditions.append(Article.fetched_at >= fetched_after)
+        if fetched_before is not None:
+            conditions.append(Article.fetched_at < fetched_before)
+
         result = await session.execute(
             select(
                 Article.id.label("article_id"),
@@ -485,13 +516,7 @@ async def get_articles_ready_for_anchor_extraction(
             )
             .select_from(Article)
             .join(NewsSource, Article.source_id == NewsSource.id)
-            .where(
-                Article.fetched_at >= cutoff,
-                or_(
-                    NewsSource.source_type != "we_mp_rss",
-                    Article.content_refresh_status == "detail_fetched",
-                ),
-            )
+            .where(*conditions)
             .order_by(Article.fetched_at.desc(), Article.id.desc())
             .limit(limit)
         )
@@ -648,6 +673,38 @@ async def update_ai_config(
 
 
 # --------------------------------------------------------------------------
+# Schedule Config
+# --------------------------------------------------------------------------
+
+async def get_schedule_config() -> Dict[str, Any]:
+    """Get persistent scheduler configuration."""
+    async with get_db() as session:
+        result = await session.execute(select(ScheduleConfig).where(ScheduleConfig.id == 1))
+        config = result.scalar_one_or_none()
+        return _model_to_dict(config) if config else {}
+
+
+async def update_schedule_config(fetch_times: list[str]) -> Dict[str, Any]:
+    """Create or update persistent scheduler configuration."""
+    async with get_db() as session:
+        result = await session.execute(select(ScheduleConfig).where(ScheduleConfig.id == 1))
+        config = result.scalar_one_or_none()
+        if config:
+            config.fetch_times = fetch_times
+            config.updated_at = datetime.utcnow()
+        else:
+            config = ScheduleConfig(
+                id=1,
+                fetch_times=fetch_times,
+                updated_at=datetime.utcnow(),
+            )
+            session.add(config)
+            await session.flush()
+            await session.refresh(config)
+        return _model_to_dict(config)
+
+
+# --------------------------------------------------------------------------
 # Fetch Logs
 # --------------------------------------------------------------------------
 
@@ -656,6 +713,129 @@ async def add_fetch_log(source_id: Optional[int], status: str, message: str):
     async with get_db() as session:
         log = FetchLog(source_id=source_id, status=status, message=message)
         session.add(log)
+
+
+# --------------------------------------------------------------------------
+# Job Runs
+# --------------------------------------------------------------------------
+
+async def create_job_run(
+    *,
+    job_name: str,
+    job_type: str,
+    trigger_source: str,
+    target_type: Optional[str] = None,
+    target_id: Optional[str] = None,
+    retry_count: int = 0,
+    payload: Optional[Dict[str, Any]] = None,
+) -> int:
+    """Create a running job run record and return its ID."""
+    async with get_db() as session:
+        job_run = JobRun(
+            job_name=job_name,
+            job_type=job_type,
+            trigger_source=trigger_source,
+            target_type=target_type,
+            target_id=target_id,
+            retry_count=retry_count,
+            status="running",
+            started_at=datetime.utcnow(),
+            payload=payload or {},
+            result_summary={},
+        )
+        session.add(job_run)
+        await session.flush()
+        await session.refresh(job_run)
+        return job_run.id
+
+
+async def finish_job_run_success(
+    job_run_id: int,
+    *,
+    result_summary: Optional[Dict[str, Any]] = None,
+    status: str = "success",
+) -> bool:
+    """Finish one job run as success or partial."""
+    async with get_db() as session:
+        result = await session.execute(
+            select(JobRun).where(JobRun.id == job_run_id)
+        )
+        job_run = result.scalar_one_or_none()
+        if not job_run:
+            return False
+
+        job_run.status = status
+        job_run.finished_at = datetime.utcnow()
+        job_run.error_message = None
+        job_run.result_summary = result_summary or {}
+        return True
+
+
+async def finish_job_run_failure(
+    job_run_id: int,
+    *,
+    error_message: str,
+    result_summary: Optional[Dict[str, Any]] = None,
+) -> bool:
+    """Finish one job run as failed."""
+    async with get_db() as session:
+        result = await session.execute(
+            select(JobRun).where(JobRun.id == job_run_id)
+        )
+        job_run = result.scalar_one_or_none()
+        if not job_run:
+            return False
+
+        job_run.status = "failed"
+        job_run.finished_at = datetime.utcnow()
+        job_run.error_message = error_message
+        job_run.result_summary = result_summary or {}
+        return True
+
+
+async def finish_job_run_skipped(
+    job_run_id: int,
+    *,
+    skip_reason: str,
+    result_summary: Optional[Dict[str, Any]] = None,
+) -> bool:
+    """Finish one job run as skipped."""
+    async with get_db() as session:
+        result = await session.execute(
+            select(JobRun).where(JobRun.id == job_run_id)
+        )
+        job_run = result.scalar_one_or_none()
+        if not job_run:
+            return False
+
+        job_run.status = "skipped"
+        job_run.finished_at = datetime.utcnow()
+        job_run.error_message = None
+        job_run.result_summary = {
+            **(result_summary or {}),
+            "skip_reason": skip_reason,
+        }
+        return True
+
+
+async def get_latest_job_runs(job_names: List[str]) -> Dict[str, Dict[str, Any]]:
+    """Return the latest run for each requested job_name keyed by job_name."""
+    if not job_names:
+        return {}
+
+    async with get_db() as session:
+        result = await session.execute(
+            select(JobRun)
+            .where(JobRun.job_name.in_(job_names))
+            .order_by(JobRun.job_name.asc(), JobRun.started_at.desc(), JobRun.id.desc())
+        )
+        runs = result.scalars().all()
+
+    latest: Dict[str, Dict[str, Any]] = {}
+    for run in runs:
+        if run.job_name not in latest:
+            latest[run.job_name] = _model_to_dict(run)
+    return latest
 
 
 # --------------------------------------------------------------------------
@@ -821,12 +1001,24 @@ async def get_digests_count(
         return int(result.scalar_one())
 
 
-async def get_all_anchors_for_digest() -> List[Dict[str, Any]]:
-    """Get all anchors for digest generation."""
+async def get_all_anchors_for_digest(
+    article_fetched_after: Optional[datetime] = None,
+    article_fetched_before: Optional[datetime] = None,
+) -> List[Dict[str, Any]]:
+    """Get anchors for digest generation, optionally filtered by article fetched_at."""
     async with get_db() as session:
-        result = await session.execute(
-            select(AnchorPoint).order_by(AnchorPoint.created_at.desc())
+        query = (
+            select(AnchorPoint)
+            .select_from(AnchorPoint)
+            .join(Article, AnchorPoint.article_id == Article.id)
+            .order_by(AnchorPoint.created_at.desc())
         )
+        if article_fetched_after is not None:
+            query = query.where(Article.fetched_at >= article_fetched_after)
+        if article_fetched_before is not None:
+            query = query.where(Article.fetched_at < article_fetched_before)
+
+        result = await session.execute(query)
         anchors = result.scalars().all()
         return [a.__dict__ for a in anchors]
 

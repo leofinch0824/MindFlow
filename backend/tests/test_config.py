@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 from fastapi.testclient import TestClient
 
 
@@ -121,7 +121,10 @@ class TestConfigAPI:
 
     def test_get_schedule(self, client):
         """Test getting schedule"""
-        with patch("routers.config.get_jobs") as mock_get:
+        with patch("routers.config.get_jobs") as mock_get, \
+             patch("routers.config.get_schedule_config", new=AsyncMock(return_value={"fetch_times": ["08:00", "12:00", "18:00", "23:30"]})), \
+             patch("routers.config.get_fetch_schedule_times") as mock_get_times, \
+             patch("routers.config.get_latest_job_runs") as mock_get_latest_runs:
             mock_get.return_value = [
                 {
                     "id": "daily_fetch",
@@ -129,22 +132,50 @@ class TestConfigAPI:
                     "next_run": "2026-04-09 08:00:00"
                 }
             ]
+            mock_get_times.return_value = ["08:00", "12:00", "18:00", "23:30"]
+            mock_get_latest_runs.return_value = {
+                "daily_fetch": {
+                    "job_name": "daily_fetch",
+                    "status": "success",
+                    "started_at": "2026-04-09T08:00:00",
+                    "finished_at": "2026-04-09T08:00:21",
+                    "error_message": None,
+                    "result_summary": {
+                        "articles_added": 4,
+                        "anchors_extracted": 2,
+                    },
+                }
+            }
             response = client.get("/api/config/schedule")
             assert response.status_code == 200
             data = response.json()
             assert len(data["jobs"]) == 1
             assert data["jobs"][0]["id"] == "daily_fetch"
+            assert data["times"] == ["08:00", "12:00", "18:00", "23:30"]
+            assert data["latest_runs"]["daily_fetch"]["status"] == "success"
+            assert data["latest_runs"]["daily_fetch"]["result_summary"]["articles_added"] == 4
 
     def test_update_schedule(self, client):
         """Test updating schedule"""
-        with patch("routers.config.update_schedule") as mock_update:
+        with patch("routers.config.update_schedule") as mock_update, \
+             patch("routers.config.update_schedule_config", new=AsyncMock(return_value={"fetch_times": ["08:00", "12:00", "18:00", "23:30"]})) as mock_persist:
             mock_update.return_value = None
-            response = client.put("/api/config/schedule", json=[8, 12, 18, 20])
+            response = client.put("/api/config/schedule", json={
+                "times": ["08:00", "12:00", "18:00", "23:30"]
+            })
             assert response.status_code == 200
             assert response.json()["success"] is True
+            mock_persist.assert_awaited_once_with(["08:00", "12:00", "18:00", "23:30"])
+            mock_update.assert_called_once_with(["08:00", "12:00", "18:00", "23:30"])
 
     def test_update_schedule_empty(self, client):
         """Test updating schedule with empty list"""
-        response = client.put("/api/config/schedule", json=[])
+        response = client.put("/api/config/schedule", json={"times": []})
         assert response.status_code == 200
         assert response.json()["success"] is False
+
+    def test_update_schedule_invalid_time(self, client):
+        """Test updating schedule with invalid minute-level time."""
+        response = client.put("/api/config/schedule", json={"times": ["08:00", "24:00"]})
+        assert response.status_code == 400
+        assert "HH:mm" in response.json()["detail"]

@@ -355,12 +355,27 @@ export const configApi = {
       body: JSON.stringify(data),
     }),
 
-  getSchedule: () => fetchApi<{ jobs: Array<{ id: string; name: string; next_run: string | null }> }>('/config/schedule'),
+  getSchedule: () => fetchApi<{
+    times: string[];
+    jobs: Array<{ id: string; name: string; next_run: string | null }>;
+    latest_runs: Record<string, {
+      id: number;
+      job_name: string;
+      job_type: string;
+      trigger_source: string;
+      status: string;
+      started_at: string | null;
+      finished_at: string | null;
+      error_message: string | null;
+      payload: Record<string, unknown>;
+      result_summary: Record<string, unknown>;
+    }>;
+  }>('/config/schedule'),
 
-  updateSchedule: (hours: number[]) =>
+  updateSchedule: (times: string[]) =>
     fetchApi<{ success: boolean; message: string }>('/config/schedule', {
       method: 'PUT',
-      body: JSON.stringify(hours),
+      body: JSON.stringify({ times }),
     }),
 };
 

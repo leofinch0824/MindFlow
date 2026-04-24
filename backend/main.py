@@ -9,13 +9,14 @@ load_dotenv(Path(__file__).parent / ".env")
 
 from database import init_db, check_db_health
 from routers import sources, articles, config, digests, interests, behavior, now
-from services.scheduler import start_scheduler, stop_scheduler
+from services.scheduler import load_persisted_fetch_schedule, start_scheduler, stop_scheduler
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     await init_db()
+    await load_persisted_fetch_schedule()
     start_scheduler()
     yield
     # Shutdown

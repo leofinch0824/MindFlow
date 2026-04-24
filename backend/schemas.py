@@ -174,6 +174,35 @@ class AIConfigTestResponse(BaseModel):
     used_stored_api_key: bool = False
 
 
+class ScheduleJobResponse(BaseModel):
+    id: str
+    name: str
+    next_run: Optional[str] = None
+
+
+class JobRunSummaryResponse(BaseModel):
+    id: int
+    job_name: str
+    job_type: str
+    trigger_source: str
+    status: str
+    started_at: Optional[str] = None
+    finished_at: Optional[str] = None
+    error_message: Optional[str] = None
+    payload: dict = Field(default_factory=dict)
+    result_summary: dict = Field(default_factory=dict)
+
+
+class ScheduleConfigResponse(BaseModel):
+    times: list[str] = Field(default_factory=list)
+    jobs: list[ScheduleJobResponse] = Field(default_factory=list)
+    latest_runs: dict[str, JobRunSummaryResponse] = Field(default_factory=dict)
+
+
+class ScheduleUpdateRequest(BaseModel):
+    times: list[str] = Field(default_factory=list)
+
+
 # Fetch Response
 class FetchResponse(BaseModel):
     success: bool
